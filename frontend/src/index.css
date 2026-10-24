@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 215 28% 10%;
+    --foreground: 210 40% 98%;
+    --card: 217 33% 14%;
+    --card-foreground: 210 40% 98%;
+    --primary: 158 64% 45%; /* Emerald Field Green */
+    --primary-foreground: 160 84% 97%;
+    --secondary: 217 25% 22%;
+    --secondary-foreground: 210 40% 98%;
+    --accent: 199 89% 48%; /* Tech Sky Blue */
+    --accent-foreground: 210 40% 98%;
+    --warning: 38 92% 50%; /* Alert Amber */
+    --danger: 0 84% 60%; /* Critical Red */
+    --muted: 217 20% 27%;
+    --muted-foreground: 215 20% 65%;
+    --border: 217 25% 20%;
+  }
+
+  body {
+    background-color: #0b111e;
+    color: #f1f5f9;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+}
+
+/* Glassmorphism effects */
+.glass-panel {
+  background: rgba(18, 26, 43, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover:hover {
+  background: rgba(24, 34, 56, 0.85);
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.glass-card-subtle {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Custom scrollbars for field devices */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b111e;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Pulse animation for active offline agents */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.02); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s infinite ease-in-out;
+}

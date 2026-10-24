@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.venv/
+*/.venv/
+venv/
+*/venv/
+
+# Python cache & compiled
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*/.pytest_cache/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+fieldpilot.db
+*/fieldpilot.db
+
+# Build outputs
+dist/
+*/dist/
+build/
+*/build/
+
+# Environment & local settings
+.env
+.env.local
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
