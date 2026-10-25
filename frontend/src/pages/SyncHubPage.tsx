@@ -67,7 +67,7 @@ export const SyncHubPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => syncManager.triggerSync()}
+          onClick={() => syncManager.triggerSync({ isManual: true })}
           disabled={syncState.isSyncing || netMode === 'offline'}
           className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg ${
             syncState.isSyncing
@@ -81,6 +81,33 @@ export const SyncHubPage: React.FC = () => {
           <span>{syncState.isSyncing ? 'Synchronizing Outbox...' : 'Trigger Full Sync Now'}</span>
         </button>
       </div>
+
+      {/* Suspension / Permanent Error Notice */}
+      {syncState.lastError && (
+        <div className={`p-4 rounded-xl border flex items-start justify-between gap-3 text-xs ${
+          syncState.isAutoSyncSuspended
+            ? 'bg-rose-950/40 border-rose-500/40 text-rose-200'
+            : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
+        }`}>
+          <div className="flex items-start space-x-2.5">
+            <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${syncState.isAutoSyncSuspended ? 'text-rose-400' : 'text-amber-400'}`} />
+            <div>
+              <span className="font-bold uppercase tracking-wider block">
+                {syncState.isAutoSyncSuspended ? 'Automatic Synchronization Suspended' : 'Sync Warning'}
+              </span>
+              <p className="mt-0.5 text-slate-300 font-mono text-[11px] leading-relaxed">
+                {syncState.lastError}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => syncManager.triggerSync({ isManual: true })}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs shrink-0 transition-colors"
+          >
+            Reset & Retry
+          </button>
+        </div>
+      )}
 
       {/* Sync Status Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -150,7 +150,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
             
             {/* Sync Status Button */}
             <button
-              onClick={() => syncManager.triggerSync()}
+              onClick={() => syncManager.triggerSync({ isManual: true })}
               disabled={syncState.isSyncing || !isOnline}
               title={isOnline ? 'Click to trigger server synchronization' : 'Offline - Outbox queued'}
               className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${

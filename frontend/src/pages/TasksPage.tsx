@@ -66,7 +66,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
         <div className="flex items-center space-x-2">
           {pendingOutboxCount > 0 && (
             <button
-              onClick={() => syncManager.triggerSync()}
+              onClick={() => syncManager.triggerSync({ isManual: true })}
               className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors"
             >
               <CloudUpload className="w-4 h-4" />

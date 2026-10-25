@@ -1,6 +1,7 @@
+import json
 from datetime import datetime, timezone
 from typing import Optional, Any
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -40,6 +41,13 @@ class TaskBase(BaseModel):
     device_id: str = "device-default"
     revision: int = 1
 
+    @field_validator('agent_output', mode='before')
+    @classmethod
+    def serialize_agent_output(cls, v):
+        if isinstance(v, (dict, list)):
+            return json.dumps(v)
+        return v
+
 class TaskCreate(TaskBase):
     id: Optional[str] = None
     client_updated_at: Optional[datetime] = None
@@ -57,6 +65,13 @@ class TaskUpdate(BaseModel):
     verified_evidence: Optional[bool] = None
     revision: Optional[int] = None
     client_updated_at: Optional[datetime] = None
+
+    @field_validator('agent_output', mode='before')
+    @classmethod
+    def serialize_agent_output_update(cls, v):
+        if isinstance(v, (dict, list)):
+            return json.dumps(v)
+        return v
 
 class TaskResponse(TaskBase):
     model_config = ConfigDict(from_attributes=True)

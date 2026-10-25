@@ -126,3 +126,75 @@ def test_sync_pull():
     assert "tasks" in data
     assert "server_timestamp" in data
     assert data["total_count"] > 0
+
+def test_sync_push_get_endpoint_info():
+    """Verify that sending a GET request to /api/sync/push returns 200 with documentation info, not 405 Method Not Allowed."""
+    response = client.get("/api/sync/push")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["endpoint"] == "/api/sync/push"
+    assert data["supported_method"] == "POST"
+
+def test_sync_push_dual_prefix_routing():
+    """Verify that both /api/sync/push and /sync/push resolve to the handler (critical for Vercel prefix stripping rewrites)."""
+    task_id = str(uuid.uuid4())
+    payload = {
+        "device_id": "dual-prefix-tester",
+        "tasks": [
+            {
+                "id": task_id,
+                "title": "Borewell Contamination Check",
+                "description": "Turbidity test required.",
+                "category": "water_supply",
+                "priority": "medium"
+            }
+        ]
+    }
+    # Direct /sync/push route
+    res = client.post("/sync/push", json=payload)
+    assert res.status_code == 200
+    assert res.json()["results"][0]["task_id"] == task_id
+
+def test_sync_push_with_raw_dict_agent_output():
+    """Verify that agent_output passed as raw dictionary object is automatically serialized and persisted."""
+    task_id = str(uuid.uuid4())
+    payload = {
+        "device_id": "dict-agent-node",
+        "tasks": [
+            {
+                "id": task_id,
+                "title": "Solar Water Filter Pump",
+                "description": "Filter pump clogged with sand.",
+                "category": "water_supply",
+                "priority": "high",
+                "agent_output": {
+                    "summary": "Sand clog in water pump",
+                    "actions": [{"id": "act-1", "title": "Clean filter"}]
+                }
+            }
+        ]
+    }
+    res = client.post("/api/sync/push", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["results"][0]["task_id"] == task_id
+
+    # Verify persisted in database
+    get_res = client.get(f"/api/tasks/{task_id}")
+    assert get_res.status_code == 200
+    assert "Clean filter" in get_res.json()["agent_output"]
+
+def test_sync_push_validation_error():
+    """Verify proper 422 Unprocessable Entity error when required fields are missing."""
+    invalid_payload = {
+        "device_id": "missing-tasks-node"
+        # 'tasks' field is omitted
+    }
+    res = client.post("/api/sync/push", json=invalid_payload)
+    assert res.status_code == 422
+
+def test_sync_push_empty_tasks():
+    """Verify graceful handling when tasks list is empty."""
+    res = client.post("/api/sync/push", json={"device_id": "empty-node", "tasks": []})
+    assert res.status_code == 200
+    assert res.json()["processed_count"] == 0

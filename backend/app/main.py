@@ -26,10 +26,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount Routers
+# Mount Routers under /api
 app.include_router(tasks.router, prefix=settings.API_PREFIX)
 app.include_router(sync.router, prefix=settings.API_PREFIX)
 app.include_router(telemetry.router, prefix=settings.API_PREFIX)
+
+# Also mount under root to handle Vercel rewrite prefix variations
+app.include_router(tasks.router)
+app.include_router(sync.router)
+app.include_router(telemetry.router)
 
 @app.get("/")
 def root():
@@ -42,11 +47,12 @@ def root():
     }
 
 @app.get(f"{settings.API_PREFIX}/health")
+@app.get("/health")
 def health_check():
     return {
         "status": "healthy",
         "server_time": utc_now().isoformat(),
-        "database": "sqlite_connected",
+        "database": "sqlite_connected" if "sqlite" in settings.DATABASE_URL else "db_connected",
         "version": settings.VERSION
     }
 
