@@ -1,8 +1,9 @@
-const CACHE_NAME = 'fieldpilot-cache-v1';
+const CACHE_NAME = 'fieldpilot-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/favicon.svg',
   '/vite.svg'
 ];
 
@@ -27,8 +28,27 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Let API requests pass directly to the network or fail to let offline handlers take over
-  if (event.request.url.includes('/api/')) {
+  // Only intercept GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Parse URL safely
+  let requestUrl;
+  try {
+    requestUrl = new URL(event.request.url);
+  } catch {
+    return;
+  }
+
+  // Do not intercept API requests (let network or offline DB handlers manage them)
+  if (requestUrl.pathname.startsWith('/api') || requestUrl.pathname.includes('/api/')) {
+    return;
+  }
+
+  // Do not intercept cross-origin requests (e.g. external APIs, fonts, Ollama on localhost)
+  // Letting the browser handle cross-origin requests natively prevents net::ERR_FAILED on network drop or blocker
+  if (requestUrl.origin !== self.location.origin) {
     return;
   }
 
@@ -37,26 +57,34 @@ self.addEventListener('fetch', (event) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(event.request).then((networkResponse) => {
-        // Cache successful GET responses for assets
-        if (
-          event.request.method === 'GET' &&
-          networkResponse &&
-          networkResponse.status === 200 &&
-          (event.request.url.startsWith('http://') || event.request.url.startsWith('https://'))
-        ) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+
+      return fetch(event.request)
+        .then((networkResponse) => {
+          // Cache valid same-origin assets
+          if (
+            networkResponse &&
+            networkResponse.status === 200 &&
+            (networkResponse.type === 'basic' || networkResponse.type === 'default')
+          ) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Fallback to cached index.html for SPA client-side routing
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+
+          // Return empty 404 response rather than returning undefined which triggers net::ERR_FAILED
+          return new Response(null, {
+            status: 404,
+            statusText: 'Offline Asset Not Cached'
           });
-        }
-        return networkResponse;
-      }).catch(() => {
-        // Fallback to cached index.html for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
-      });
+        });
     })
   );
 });
