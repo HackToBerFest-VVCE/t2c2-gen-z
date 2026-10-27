@@ -1,16 +1,28 @@
-const CACHE_NAME = 'fieldpilot-cache-v2';
+const CACHE_NAME = 'fieldpilot-cache-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
-  '/vite.svg'
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Pre-cache assets safely without failing the entire installation if one network request hiccups
+      const cachePromises = STATIC_ASSETS.map(async (asset) => {
+        try {
+          const response = await fetch(asset, { cache: 'reload' });
+          if (response && response.ok) {
+            await cache.put(asset, response);
+          }
+        } catch (err) {
+          console.warn(`[FieldPilot SW] Failed to pre-cache ${asset}:`, err);
+        }
+      });
+      await Promise.all(cachePromises);
     })
   );
   self.skipWaiting();
@@ -47,7 +59,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Do not intercept cross-origin requests (e.g. external APIs, fonts, Ollama on localhost)
-  // Letting the browser handle cross-origin requests natively prevents net::ERR_FAILED on network drop or blocker
   if (requestUrl.origin !== self.location.origin) {
     return;
   }
