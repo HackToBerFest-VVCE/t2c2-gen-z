@@ -2,32 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { 
   Wifi, 
   WifiOff, 
-  Radio, 
   Battery, 
   BatteryCharging, 
   BatteryWarning, 
-  Cloud, 
   CloudUpload, 
   Cpu, 
   LayoutDashboard, 
   ClipboardList, 
-  PlusCircle, 
   RefreshCw, 
-  Sliders,
-  CheckCircle2,
-  ShieldCheck,
-  Mic,
-  FileText,
-  Server,
-  Sparkles,
-  Globe
+  Sliders, 
+  Mic, 
+  FileText, 
+  Server, 
+  Sparkles 
 } from 'lucide-react';
 import { networkSimulator, type NetworkMode } from '../services/networkSimulator';
 import { resourceManager, type ResourceStatus } from '../services/resourceManager';
 import { syncManager, type SyncState } from '../services/syncManager';
 import { aiProviderService } from '../services/aiProviderService';
-import { languageService } from '../services/languageService';
-import { LanguageSelectorModal } from './LanguageSelectorModal';
 import type { OperatingMode } from '../types';
 
 interface NavbarProps {
@@ -40,8 +32,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
   const [aiMode, setAiMode] = useState<OperatingMode>(aiProviderService.getMode());
   const [isOnline, setIsOnline] = useState<boolean>(networkSimulator.isEffectivelyOnline());
   const [resources, setResources] = useState<ResourceStatus>(resourceManager.getStatus());
-  const [currentLang, setCurrentLang] = useState<string>(languageService.getLanguage());
-  const [isLangModalOpen, setIsLangModalOpen] = useState<boolean>(false);
   const [syncState, setSyncState] = useState<SyncState>({
     isSyncing: false,
     isOnline: true,
@@ -66,24 +56,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
     const unsubRes = resourceManager.subscribe(s => setResources(s));
     const unsubSync = syncManager.subscribe(s => setSyncState(s));
     const unsubAi = aiProviderService.subscribe(s => setAiMode(s.mode));
-    const unsubLang = languageService.subscribe(lang => setCurrentLang(lang));
 
     return () => {
       unsubNet();
       unsubRes();
       unsubSync();
       unsubAi();
-      unsubLang();
     };
   }, []);
 
-  const langConfig = languageService.getLanguageConfig(currentLang);
-  const strings = languageService.getStrings(currentLang);
   const batteryPercent = Math.round(resources.batteryLevel * 100);
 
   return (
-    <>
-      <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 bg-[#0b111e]/90">
+    <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 bg-[#0b111e]/90">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
@@ -114,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>{strings.navDashboard}</span>
+              <span>Dashboard</span>
             </button>
 
             <button
@@ -126,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <Mic className="w-3.5 h-3.5" />
-              <span>{strings.navVoice}</span>
+              <span>Voice Copilot</span>
             </button>
 
             <button
@@ -138,7 +123,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>{strings.navField}</span>
+              <span>Field Worker</span>
             </button>
 
             <button
@@ -150,7 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <Server className="w-3.5 h-3.5" />
-              <span>{strings.navSupervisor}</span>
+              <span>Supervisor</span>
             </button>
 
             <button
@@ -162,7 +147,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <ClipboardList className="w-3.5 h-3.5" />
-              <span>{strings.navTasks}</span>
+              <span>Tasks</span>
             </button>
 
             <button
@@ -174,7 +159,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <CloudUpload className={`w-3.5 h-3.5 ${syncState.isSyncing ? 'animate-bounce text-emerald-400' : ''}`} />
-              <span>{strings.navSync}</span>
+              <span>Sync Hub</span>
               {syncState.pendingCount > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950">
                   {syncState.pendingCount}
@@ -191,24 +176,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>{strings.navRuntime}</span>
+              <span>Runtime</span>
             </button>
           </nav>
 
           {/* Right Status Badges */}
           <div className="flex items-center space-x-2 sm:space-x-2.5">
             
-            {/* Global Language Selector Trigger Button */}
-            <button
-              onClick={() => setIsLangModalOpen(true)}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border bg-slate-800/90 hover:bg-slate-800 text-slate-200 border-slate-700/80 hover:border-emerald-500/50 transition-all shadow-sm group"
-              title="Change Language (ಅಡಿಕೆ / हिन्दी / English / etc.)"
-            >
-              <Globe className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-45 transition-transform duration-300" />
-              <span className="font-bold text-white tracking-wide">{langConfig.nativeName}</span>
-              <span className="text-[10px] text-slate-400 font-mono hidden xl:inline">({langConfig.code})</span>
-            </button>
-
             {/* Sync Status Button */}
             <button
               onClick={() => syncManager.triggerSync({ isManual: true })}
@@ -228,7 +202,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               </span>
             </button>
 
-            {/* Operating Mode Selector Dropdown */}
+            {/* Operating Mode Selector */}
             <div className="relative group">
               <button
                 className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-all ${
@@ -238,106 +212,46 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
                     ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
                     : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
                 }`}
-                title="AI Operating Mode (Online / Hybrid / Strict Offline)"
               >
-                <Sparkles className="w-3 h-3 text-cyan-400" />
-                <span className="hidden md:inline font-mono uppercase text-[10px]">
-                  {aiMode === 'strict_offline' ? 'Strict Offline' : aiMode === 'hybrid' ? 'Hybrid AI' : 'Online AI'}
+                <Sparkles className="w-3 h-3" />
+                <span className="capitalize font-mono text-[11px] hidden sm:inline">
+                  {aiMode.replace('_', ' ')}
                 </span>
               </button>
-
-              <div className="absolute right-0 mt-1 w-52 py-2 bg-slate-900/95 border border-slate-700/80 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 z-50">
-                <div className="px-3 py-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  AI Operating Mode
-                </div>
-                <button
-                  onClick={() => aiProviderService.setMode('online')}
-                  className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-emerald-500/20 hover:text-emerald-300 flex items-center justify-between"
-                >
-                  <span>Online (Gemini Cloud)</span>
-                  {aiMode === 'online' && <span className="text-emerald-400 font-bold">✓</span>}
-                </button>
-                <button
-                  onClick={() => aiProviderService.setMode('hybrid')}
-                  className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-cyan-500/20 hover:text-cyan-300 flex items-center justify-between"
-                >
-                  <span>Hybrid (Local First + Cloud)</span>
-                  {aiMode === 'hybrid' && <span className="text-cyan-400 font-bold">✓</span>}
-                </button>
-                <button
-                  onClick={() => aiProviderService.setMode('strict_offline')}
-                  className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-rose-500/20 hover:text-rose-300 flex items-center justify-between"
-                >
-                  <span>Strict Offline (Zero Cloud)</span>
-                  {aiMode === 'strict_offline' && <span className="text-rose-400 font-bold">✓</span>}
-                </button>
-              </div>
             </div>
 
-            {/* Battery Indicator Badge */}
-            <div 
-              className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-mono font-medium border ${
-                resources.lowPowerMode
-                  ? 'bg-rose-500/15 text-rose-300 border-rose-500/40 animate-pulse-subtle'
-                  : batteryPercent <= 20
-                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                  : 'bg-slate-800/60 text-emerald-400 border-slate-700/50'
-              }`}
-              title={`Battery: ${batteryPercent}% ${resources.isCharging ? '(Charging)' : ''} | Low Power Mode: ${resources.lowPowerMode ? 'ON' : 'OFF'}`}
-            >
-              {resources.isCharging ? (
-                <BatteryCharging className="w-3 h-3 text-emerald-400" />
-              ) : batteryPercent <= 20 ? (
-                <BatteryWarning className="w-3 h-3 text-rose-400" />
-              ) : (
-                <Battery className="w-3 h-3 text-emerald-400" />
-              )}
-              <span>{batteryPercent}%</span>
-            </div>
-
-            {/* Network Mode Simulator Pill */}
+            {/* Network Simulator */}
             <div className="relative group">
               <button
                 className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                  netMode === 'online'
-                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/10'
+                  !isOnline
+                    ? 'bg-rose-500/15 text-rose-300 border-rose-500/40 animate-pulse'
                     : netMode === '2g_flaky'
                     ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
-                    : 'bg-rose-500/15 text-rose-300 border-rose-500/40'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                 }`}
               >
-                {netMode === 'online' && <Wifi className="w-3 h-3 text-emerald-400" />}
-                {netMode === '2g_flaky' && <Radio className="w-3 h-3 text-amber-400 animate-pulse" />}
-                {netMode === 'offline' && <WifiOff className="w-3 h-3 text-rose-400" />}
-                <span className="font-semibold capitalize text-[11px]">{netMode.replace('_', ' ')}</span>
+                {!isOnline ? <WifiOff className="w-3.5 h-3.5" /> : <Wifi className="w-3.5 h-3.5" />}
+                <span className="uppercase font-mono text-[11px] hidden sm:inline">{netMode === '2g_flaky' ? '2G' : netMode}</span>
               </button>
+            </div>
 
-              <div className="absolute right-0 mt-1 w-48 py-2 bg-slate-900/95 border border-slate-700/80 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 z-50">
-                <div className="px-3 py-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Simulate Field Network
-                </div>
-                <button
-                  onClick={() => networkSimulator.setMode('online')}
-                  className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-emerald-500/20 hover:text-emerald-300 flex items-center space-x-2"
-                >
-                  <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Online (Connected)</span>
-                </button>
-                <button
-                  onClick={() => networkSimulator.setMode('2g_flaky')}
-                  className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-amber-500/20 hover:text-amber-300 flex items-center space-x-2"
-                >
-                  <Radio className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Flaky 2G (Intermittent)</span>
-                </button>
-                <button
-                  onClick={() => networkSimulator.setMode('offline')}
-                  className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-rose-500/20 hover:text-rose-300 flex items-center space-x-2"
-                >
-                  <WifiOff className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Deep Offline (No Internet)</span>
-                </button>
-              </div>
+            {/* Battery Indicator */}
+            <div
+              className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-medium border ${
+                resources.lowPowerMode
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 animate-pulse'
+                  : 'bg-slate-800 text-slate-300 border-slate-700'
+              }`}
+            >
+              {resources.isCharging ? (
+                <BatteryCharging className="w-3.5 h-3.5 text-emerald-400" />
+              ) : resources.lowPowerMode ? (
+                <BatteryWarning className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <Battery className="w-3.5 h-3.5" />
+              )}
+              <span className="font-mono text-[11px]">{batteryPercent}%</span>
             </div>
 
           </div>
@@ -346,7 +260,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
       </div>
 
       {/* Mobile Tab Bar */}
-      <div className="flex lg:hidden border-t border-slate-800 bg-[#0b111e]/95 px-2 py-1 justify-around text-xs overflow-x-auto">
+      <div className="lg:hidden flex items-center justify-around border-t border-slate-800/80 bg-slate-950/90 py-1.5 text-xs">
         <button
           onClick={() => onSelectTab('dashboard')}
           className={`flex flex-col items-center py-1 px-2 shrink-0 ${currentTab === 'dashboard' ? 'text-emerald-400' : 'text-slate-400'}`}
@@ -389,22 +303,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
           <CloudUpload className="w-4 h-4 mb-0.5" />
           <span>Sync ({syncState.pendingCount})</span>
         </button>
-        <button
-          onClick={() => setIsLangModalOpen(true)}
-          className="flex flex-col items-center py-1 px-2 shrink-0 text-slate-300 hover:text-emerald-400"
-          title="Change Language"
-        >
-          <Globe className="w-4 h-4 mb-0.5 text-emerald-400" />
-          <span className="font-semibold text-[10px]">{langConfig.nativeName}</span>
-        </button>
       </div>
-      </header>
-
-      {/* Searchable Language Selector Modal */}
-      <LanguageSelectorModal 
-        isOpen={isLangModalOpen} 
-        onClose={() => setIsLangModalOpen(false)} 
-      />
-    </>
+    </header>
   );
 };

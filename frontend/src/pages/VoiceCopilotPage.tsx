@@ -3,31 +3,21 @@ import {
   Mic, 
   MicOff, 
   Volume2, 
-  VolumeX, 
-  RotateCcw, 
   RefreshCw, 
   Send, 
   Image as ImageIcon, 
   Sparkles, 
   ShieldCheck, 
-  Info, 
-  Wifi, 
-  WifiOff,
-  Radio,
-  BookOpen,
-  MessageSquare,
-  HelpCircle,
-  ExternalLink
+  HelpCircle 
 } from 'lucide-react';
-import { languageService, SUPPORTED_LANGUAGES } from '../services/languageService';
 import { speechService, type SpeechEvent } from '../services/speechService';
 import { aiProviderService, type AIProviderStatus } from '../services/aiProviderService';
-import { LanguageSelectorModal } from '../components/LanguageSelectorModal';
 import { db } from '../db';
-import type { VoiceMessage, OperatingMode } from '../types';
+import type { VoiceMessage } from '../types';
+
+const COPILOT_LANG = 'kn-IN';
 
 export const VoiceCopilotPage: React.FC = () => {
-  const [selectedLang, setSelectedLang] = useState<string>(languageService.getLanguage());
   const [speechState, setSpeechState] = useState<string>('idle');
   const [transcript, setTranscript] = useState<string>('');
   const [interimTranscript, setInterimTranscript] = useState<string>('');
@@ -40,21 +30,14 @@ export const VoiceCopilotPage: React.FC = () => {
     geminiConfigured: false,
     activeProvider: 'Local Knowledge Engine'
   });
-  const [showLanguageModal, setShowLanguageModal] = useState<boolean>(false);
   const [attachedPhotoUrl, setAttachedPhotoUrl] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const strings = languageService.getStrings(selectedLang);
-  const currentLangConfig = languageService.getLanguageConfig(selectedLang);
-
   // Initialize and load saved conversation
   useEffect(() => {
-    const unsubLang = languageService.subscribe(lang => {
-      setSelectedLang(lang);
-      speechService.setLanguage(lang);
-    });
+    speechService.setLanguage(COPILOT_LANG);
 
     const unsubSpeech = speechService.subscribe((event: SpeechEvent) => {
       setSpeechState(event.state);
@@ -81,20 +64,11 @@ export const VoiceCopilotPage: React.FC = () => {
         if (saved && saved.messages && saved.messages.length > 0) {
           setMessages(saved.messages);
         } else {
-          // Initial welcome message in selected language
-          const welcomeReplies: Record<string, string> = {
-            'kn-IN': 'ನಮಸ್ಕಾರ! ನಾನು ನಿಮ್ಮ ಆಫ್‌ಲೈನ್ ಕೃಷಿ ಮತ್ತು ಫೀಲ್ಡ್ ಸಹಾಯಕ. ಅಡಿಕೆ, ಭತ್ತ, ರಾಗಿ, ಟೊಮೆಟೊ ಬೆಳೆಗಳ ರೋಗ, ಕೀಟ ಬಾಧೆ ಅಥವಾ ನೀರಿನ ಸಮಸ್ಯೆಗಳ ಬಗ್ಗೆ ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡಿ ಕೇಳಿ.',
-            'hi-IN': 'नमस्ते! मैं आपका ऑफलाइन कृषि और फील्ड सहायक हूं। सुपारी, धान, रागी, टमाटर फसल या जल आपूर्ति के बारे में बोलकर सवाल पूछें।',
-            'te-IN': 'నమస్కారం! నేను మీ ఆఫ్‌లైన్ వ్యవసాయ సహాయకుడిని. వరి, పోక, టమాట పంటలు లేదా నీటి సమస్యల గురించి మాట్లాడి అడగండి.',
-            'ta-IN': 'வணக்கம்! நான் உங்கள் ஆஃப்லைன் விவசாய உதவியாளர். பாக்கு, நெல், தக்காளி பயிர்கள் அல்லது குடிநீர் சிக்கல்கள் பற்றி பேசி கேளுங்கள்.',
-            'en-US': 'Hello! I am your OfflineFirst Voice Copilot. Speak naturally or type questions regarding rural crops (Arecanut, Paddy, Ragi, Tomato) or water infrastructure.'
-          };
-
           const initMsg: VoiceMessage = {
             id: `msg-init-${Date.now()}`,
             role: 'assistant',
-            text: welcomeReplies[selectedLang] || welcomeReplies['kn-IN'],
-            language: selectedLang,
+            text: 'ನಮಸ್ಕಾರ! ನಾನು ನಿಮ್ಮ ಆಫ್‌ಲೈನ್ ಕೃಷಿ ಮತ್ತು ಫೀಲ್ಡ್ ಸಹಾಯಕ. ಅಡಿಕೆ, ಭತ್ತ, ರಾಗಿ, ಟೊಮೆಟೊ ಬೆಳೆಗಳ ರೋಗ, ಕೀಟ ಬಾಧೆ ಅಥವಾ ನೀರಿನ ಸಮಸ್ಯೆಗಳ ಬಗ್ಗೆ ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡಿ ಕೇಳಿ.',
+            language: COPILOT_LANG,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             provider_used: 'verified_knowledge_engine',
             sources: ['ICAR-CRIDA & UAS Bangalore Field Guide']
@@ -109,7 +83,6 @@ export const VoiceCopilotPage: React.FC = () => {
     loadConversation();
 
     return () => {
-      unsubLang();
       unsubSpeech();
       unsubAI();
       speechService.stopSpeaking();
@@ -122,25 +95,16 @@ export const VoiceCopilotPage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isProcessing]);
 
-  // Handle language switch
-  const handleSelectLanguage = async (code: string) => {
-    setSelectedLang(code);
-    await languageService.setLanguage(code);
-    speechService.setLanguage(code);
-    setShowLanguageModal(false);
-  };
-
   // Push-to-talk press
   const handleStartListening = async () => {
     setTranscript('');
     setInterimTranscript('');
-    await speechService.startListening(selectedLang);
+    await speechService.startListening(COPILOT_LANG);
   };
 
   // Push-to-talk release
   const handleStopListening = () => {
     speechService.stopListening();
-    // If text was recognized, trigger send
     setTimeout(() => {
       if (textInput.trim() || transcript.trim()) {
         const query = (textInput || transcript).trim();
@@ -149,68 +113,63 @@ export const VoiceCopilotPage: React.FC = () => {
     }, 400);
   };
 
-  // Send message to AI engine
-  const handleSendMessage = async (queryText?: string) => {
-    const text = (queryText || textInput).trim();
-    if (!text && !attachedPhotoUrl) return;
+  // Send message
+  const handleSendMessage = async (textToSend?: string) => {
+    const query = (textToSend !== undefined ? textToSend : textInput).trim();
+    if (!query && !attachedPhotoUrl) return;
 
-    speechService.stopListening();
     speechService.stopSpeaking();
 
     const userMsg: VoiceMessage = {
       id: `msg-user-${Date.now()}`,
       role: 'user',
-      text: text || 'Photo query attached',
-      language: selectedLang,
+      text: query || 'Crop photograph query',
+      language: COPILOT_LANG,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       photo_url: attachedPhotoUrl || undefined
     };
 
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
     setTextInput('');
     setTranscript('');
     setInterimTranscript('');
-    const photoToSend = attachedPhotoUrl;
+    const photoToSubmit = attachedPhotoUrl;
     setAttachedPhotoUrl(null);
     setIsProcessing(true);
 
     try {
-      const response = await aiProviderService.sendChatMessage(
-        text,
-        selectedLang,
-        messages
-      );
+      const response = await aiProviderService.sendChatMessage(query, COPILOT_LANG, messages.slice(-4));
 
       const assistantMsg: VoiceMessage = {
         id: `msg-asst-${Date.now()}`,
         role: 'assistant',
         text: response.reply,
-        language: selectedLang,
+        language: COPILOT_LANG,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         provider_used: response.providerUsed,
         sources: response.verifiedSources
       };
 
-      const finalMessages = [...newMessages, assistantMsg];
+      const finalMessages = [...nextMessages, assistantMsg];
       setMessages(finalMessages);
 
-      // Persist conversation to IndexedDB
+      // Persist in IndexedDB
       await db.voiceConversations.put({
         id: 'active_session',
-        language: selectedLang,
+        language: COPILOT_LANG,
         messages: finalMessages,
         updated_at: new Date().toISOString()
       });
 
-      // Spoken response
-      speechService.speak(response.reply, selectedLang);
+      // Spoken response in Kannada
+      speechService.speak(response.reply, COPILOT_LANG);
     } catch (err: any) {
       const errMsg: VoiceMessage = {
         id: `msg-err-${Date.now()}`,
         role: 'assistant',
         text: `Error processing query: ${err?.message || 'Local knowledge fallback unavailable.'}`,
-        language: selectedLang,
+        language: COPILOT_LANG,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, errMsg]);
@@ -221,7 +180,7 @@ export const VoiceCopilotPage: React.FC = () => {
 
   // Replay speech
   const handleReplay = (text: string) => {
-    speechService.speak(text, selectedLang);
+    speechService.speak(text, COPILOT_LANG);
   };
 
   // Clear conversation
@@ -264,28 +223,18 @@ export const VoiceCopilotPage: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center space-x-2">
                   <span>OfflineFirst Voice Copilot</span>
                   <span className="px-2 py-0.5 text-xs font-semibold rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    Multilingual
+                    ಕನ್ನಡ ಕೃಷಿ ಸಲಹೆಗಾರ
                   </span>
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-                  {strings.tagline}
+                  ಧ್ವನಿ ಮೂಲಕ ಕನ್ನಡದಲ್ಲಿ ಕೃಷಿ ಮತ್ತು ಪಂಚಾಯತ್ ಸಮಸ್ಯೆಗಳಿಗೆ ಪರಿಹಾರ ಪಡೆದುಕೊಳ್ಳಿ (UAS Bangalore & ICAR).
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Controls: Language Selector Button + Mode Badge */}
+          {/* Controls: Mode Badge + New Conversation */}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setShowLanguageModal(true)}
-              className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-slate-200 text-xs font-medium transition-all shadow-sm"
-            >
-              <span className="text-base">🌐</span>
-              <span className="font-semibold text-white">{currentLangConfig.nativeName}</span>
-              <span className="text-[11px] text-slate-400">({currentLangConfig.name})</span>
-            </button>
-
-            {/* Operating Mode Indicator */}
             <div className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
               <span className={`w-2 h-2 rounded-full ${
                 aiStatus.mode === 'strict_offline' ? 'bg-amber-400 animate-pulse' :
@@ -298,7 +247,7 @@ export const VoiceCopilotPage: React.FC = () => {
 
             <button
               onClick={handleNewConversation}
-              title={strings.newConversation}
+              title="ಹೊಸ ಸಂಭಾಷಣೆ (New Conversation)"
               className="p-2 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700 text-slate-300 hover:text-white transition-all"
             >
               <RefreshCw className="w-4 h-4" />
@@ -347,14 +296,14 @@ export const VoiceCopilotPage: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleReplay(msg.text)}
-                            title={strings.replay}
-                            className="p-1 rounded hover:bg-slate-800 text-emerald-400 hover:text-emerald-300 transition-colors"
+                            title="ಮತ್ತೆ ಆಲಿಸಿ (Replay voice)"
+                            className="hover:text-emerald-300 transition-colors p-1"
                           >
                             <Volume2 className="w-3.5 h-3.5" />
                           </button>
                           {msg.provider_used && (
-                            <span className="font-mono text-[10px] text-slate-400">
-                              {msg.provider_used.replace(/_/g, ' ')}
+                            <span className="font-mono text-[10px] bg-black/20 px-1.5 py-0.5 rounded text-emerald-300">
+                              {msg.provider_used}
                             </span>
                           )}
                         </div>
@@ -363,91 +312,68 @@ export const VoiceCopilotPage: React.FC = () => {
 
                     {/* Sources Badge */}
                     {msg.sources && msg.sources.length > 0 && (
-                      <div className="mt-2 text-[10px] bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 text-emerald-400 font-mono">
-                        <span className="font-bold text-slate-300">Verified Provenance: </span>
-                        {msg.sources.join(' | ')}
+                      <div className="mt-2 text-[10px] text-emerald-400/90 flex items-center space-x-1">
+                        <ShieldCheck className="w-3 h-3 shrink-0" />
+                        <span className="truncate">ಮೂಲ: {msg.sources.join(', ')}</span>
                       </div>
                     )}
                   </div>
                 </div>
               ))}
 
-              {/* Live Recognition or AI Processing State */}
               {isProcessing && (
-                <div className="flex items-center space-x-3 text-sm text-cyan-400 bg-slate-900/60 border border-cyan-500/30 p-3 rounded-xl w-fit animate-pulse">
+                <div className="flex items-center space-x-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl w-max">
                   <Sparkles className="w-4 h-4 animate-spin" />
-                  <span>{strings.processing}</span>
-                </div>
-              )}
-
-              {interimTranscript && isRecording && (
-                <div className="flex items-center space-x-2 text-sm text-amber-300 bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl w-fit">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                  <span className="italic">{interimTranscript}...</span>
+                  <span>ಕೃಷಿ ಸಲಹೆ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...</span>
                 </div>
               )}
 
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Speaking / Audio Wave Status Indicator */}
-            {isSpeaking && (
-              <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-400">
-                <div className="flex items-center space-x-2">
-                  <Volume2 className="w-4 h-4 animate-bounce" />
-                  <span className="font-semibold">{strings.speaking}</span>
-                </div>
-                <button
-                  onClick={() => speechService.stopSpeaking()}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-medium"
-                >
-                  {strings.stop}
-                </button>
-              </div>
-            )}
-
-            {/* Input Bar Area */}
-            <div className="mt-4 pt-4 border-t border-slate-800 space-y-3">
+            {/* Bottom Controls / Push-to-Talk & Text Input */}
+            <div className="pt-4 border-t border-slate-800 space-y-3">
               
-              {/* Photo preview chip if attached */}
+              {/* Photo Preview if attached */}
               {attachedPhotoUrl && (
-                <div className="flex items-center space-x-2 bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-lg w-fit text-xs text-slate-300">
-                  <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="truncate max-w-[150px]">Crop Photo Attached</span>
+                <div className="flex items-center space-x-2 p-2 bg-slate-900/90 border border-slate-800 rounded-xl w-max">
+                  <img src={attachedPhotoUrl} alt="Draft attachment" className="w-12 h-12 object-cover rounded-lg" />
+                  <span className="text-xs text-slate-300">ಫೋಟೋ ಲಗತ್ತಿಸಲಾಗಿದೆ</span>
                   <button 
                     onClick={() => setAttachedPhotoUrl(null)} 
-                    className="text-rose-400 hover:text-rose-300 font-bold ml-1"
+                    className="text-xs text-rose-400 hover:text-rose-300 ml-2 font-bold p-1"
                   >
                     ×
                   </button>
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
-                
-                {/* Photo attachment button */}
+              {/* Text Input & Controls */}
+              <div className="flex items-center space-x-2">
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
                   ref={fileInputRef}
-                  onChange={handlePhotoSelect}
+                  accept="image/*"
                   className="hidden"
+                  onChange={handlePhotoSelect}
                 />
+
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  title="Attach crop observation photo"
-                  className="p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-emerald-400 transition-all"
+                  title="ಬೆಳೆಯ ಫೋಟೋ ಲಗತ್ತಿಸಿ"
+                  className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all"
                 >
                   <ImageIcon className="w-5 h-5" />
                 </button>
 
-                {/* Text input for hybrid typing or speech preview */}
                 <input
                   type="text"
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder={isRecording ? strings.listening : `${currentLangConfig.sampleQuery}...`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSendMessage();
+                  }}
+                  placeholder={isRecording ? 'ಆಲಿಸುತ್ತಿದೆ...' : 'ಅಡಿಕೆ ಕೊಳೆ ರೋಗ, ಭತ್ತದ ಬೆಂಕಿ ರೋಗ, ಅಥವಾ ನೀರಿನ ಸಮಸ್ಯೆ ಬಗ್ಗೆ ಕೇಳಿ...'}
                   className={`flex-1 bg-slate-900 border px-4 py-3 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-all ${
                     isRecording 
                       ? 'border-emerald-500 shadow-md shadow-emerald-500/20' 
@@ -481,17 +407,17 @@ export const VoiceCopilotPage: React.FC = () => {
                   {isRecording ? (
                     <>
                       <MicOff className="w-5 h-5 animate-spin" />
-                      <span>{strings.listening}</span>
+                      <span>ಆಲಿಸುತ್ತಿದೆ... (Listening...)</span>
                     </>
                   ) : (
                     <>
                       <Mic className="w-5 h-5" />
-                      <span>{strings.pushToTalk}</span>
+                      <span>ಕೇಳಲು ಒತ್ತಿ ಹಿಡಿಯಿರಿ (Push to Talk)</span>
                     </>
                   )}
                 </button>
                 <p className="text-[11px] text-slate-500 mt-1.5">
-                  Press and hold to speak • Automatic translation to {currentLangConfig.nativeName}
+                  ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡಿ • ICAR & UAS Bangalore ಕೃಷಿ ಮಾರ್ಗದರ್ಶಿ
                 </p>
               </div>
 
@@ -507,23 +433,23 @@ export const VoiceCopilotPage: React.FC = () => {
           <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3">
             <div className="flex items-center space-x-2 text-emerald-400 font-semibold text-xs uppercase tracking-wider">
               <ShieldCheck className="w-4 h-4" />
-              <span>{strings.verifiedKnowledge}</span>
+              <span>ಪರಿಶೀಲಿಸಿದ ಕೃಷಿ ಮಾಹಿತಿ</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Curated offline agricultural advisories verified by UAS Bangalore & ICAR research stations.
+              ಬೆಂಗಳೂರು ಕೃಷಿ ವಿಶ್ವವಿದ್ಯಾಲಯ (UAS) ಮತ್ತು ICAR ಸಂಶೋಧನಾ ಕೇಂದ್ರಗಳಿಂದ ದೃಢೀಕರಿಸಲ್ಪಟ್ಟ ಆಫ್‌ಲೈನ್ ಕೃಷಿ ಮಾರ್ಗದರ್ಶಿ.
             </p>
             <div className="space-y-2 pt-1 text-xs">
               <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
                 <div className="font-semibold text-slate-200">Arecanut (ಅಡಿಕೆ)</div>
-                <div className="text-[11px] text-slate-400 mt-0.5">Koleroga (Fruit rot) & 1% Bordeaux mixture prophylaxis.</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">ಕೊಳೆ ರೋಗ ಹತೋಟಿಗೆ 1% ಬೋರ್ಡೋ ದ್ರಾವಣ ಸಿಂಪಡಣೆ.</div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
                 <div className="font-semibold text-slate-200">Paddy (ಭತ್ತ)</div>
-                <div className="text-[11px] text-slate-400 mt-0.5">Blast disease moisture & balanced nitrogen fertilizer control.</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">ಬೆಂಕಿ ರೋಗಕ್ಕೆ ಸಮತೋಲಿತ ಸಾರಜನಕ ಮತ್ತು ನೀರಿನ ನಿರ್ವಹಣೆ.</div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
                 <div className="font-semibold text-slate-200">Tomato & Ragi</div>
-                <div className="text-[11px] text-slate-400 mt-0.5">Whitefly yellow sticky traps & certified seed treatments.</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">ಬಿಳಿ ನೊಣಕ್ಕೆ ಹಳದಿ ಜಿಗುಟು ಬಲೆ ಮತ್ತು ಬಿತ್ತನೆ ಬೀಜೋಪಚಾರ.</div>
               </div>
             </div>
           </div>
@@ -532,7 +458,7 @@ export const VoiceCopilotPage: React.FC = () => {
           <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3">
             <div className="flex items-center space-x-2 text-cyan-400 font-semibold text-xs uppercase tracking-wider">
               <HelpCircle className="w-4 h-4" />
-              <span>{strings.samplePromptsTitle}</span>
+              <span>ಮಾದರಿ ಪ್ರಶ್ನೆಗಳು</span>
             </div>
             <div className="space-y-2">
               {[
@@ -556,13 +482,6 @@ export const VoiceCopilotPage: React.FC = () => {
         </div>
 
       </div>
-
-      {/* Searchable All-Language Selection Modal */}
-      <LanguageSelectorModal
-        isOpen={showLanguageModal}
-        onClose={() => setShowLanguageModal(false)}
-        onSelectLanguage={handleSelectLanguage}
-      />
 
     </div>
   );

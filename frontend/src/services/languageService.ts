@@ -1312,11 +1312,10 @@ class LanguageService {
     this.notify();
   }
 
-  private applyDirection(code: string) {
+  private applyDirection(_code: string) {
     if (typeof document !== 'undefined') {
-      const config = this.getLanguageConfig(code);
-      document.documentElement.dir = config.direction || 'ltr';
-      document.documentElement.lang = code;
+      document.documentElement.dir = 'ltr';
+      document.documentElement.lang = 'en';
     }
   }
 

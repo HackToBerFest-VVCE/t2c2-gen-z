@@ -21,7 +21,6 @@ import { db } from '../db';
 import { fieldReportService } from '../services/fieldReportService';
 import { aiProviderService } from '../services/aiProviderService';
 import { networkSimulator } from '../services/networkSimulator';
-import { languageService } from '../services/languageService';
 import type { TaskCategory, TaskPriority, FieldReport } from '../types';
 
 interface PhotoAttachmentDraft {
@@ -30,8 +29,6 @@ interface PhotoAttachmentDraft {
 }
 
 export const FieldWorkerPage: React.FC = () => {
-  const [currentLang, setCurrentLang] = useState<string>(languageService.getLanguage());
-
   // Form State
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<TaskCategory>('infrastructure');
@@ -47,14 +44,6 @@ export const FieldWorkerPage: React.FC = () => {
   const [locationName, setLocationName] = useState('');
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const unsub = languageService.subscribe(lang => setCurrentLang(lang));
-    return () => unsub();
-  }, []);
-
-  const strings = languageService.getStrings(currentLang);
-  const langConfig = languageService.getLanguageConfig(currentLang);
 
   // Status & AI Analysis State
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
@@ -188,8 +177,8 @@ export const FieldWorkerPage: React.FC = () => {
         location_name: locationName,
         notes,
         ai_summary: aiSummary,
-        original_language: currentLang,
-        preferred_language: currentLang,
+        original_language: 'en',
+        preferred_language: 'en',
         photos
       });
 
@@ -295,15 +284,12 @@ export const FieldWorkerPage: React.FC = () => {
               <h2 className="text-base font-bold text-white flex items-center space-x-2">
                 <span>Create Inspection Report</span>
               </h2>
-              <span className="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                {strings.labelOriginalLanguage}: {langConfig.nativeName} ({langConfig.code})
-              </span>
             </div>
 
             {/* Title */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                {strings.labelTitle} *
+                Report Title *
               </label>
               <input
                 type="text"
@@ -318,35 +304,35 @@ export const FieldWorkerPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  {strings.labelCategory} *
+                  Category *
                 </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as TaskCategory)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
                 >
-                  <option value="water_supply">{strings.catWater}</option>
-                  <option value="agriculture">{strings.catAgriculture}</option>
-                  <option value="healthcare">{strings.catHealthcare}</option>
-                  <option value="infrastructure">{strings.catInfrastructure}</option>
-                  <option value="education">{strings.catEducation}</option>
-                  <option value="other">{strings.catOther}</option>
+                  <option value="water_supply">Water Supply</option>
+                  <option value="agriculture">Agriculture</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="infrastructure">Infrastructure</option>
+                  <option value="education">Education</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  {strings.labelSeverity} *
+                  Severity *
                 </label>
                 <select
                   value={severity}
                   onChange={(e) => setSeverity(e.target.value as TaskPriority)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
                 >
-                  <option value="critical">{strings.sevCritical}</option>
-                  <option value="high">{strings.sevHigh}</option>
-                  <option value="medium">{strings.sevMedium}</option>
-                  <option value="low">{strings.sevLow}</option>
+                  <option value="critical">Critical (Immediate)</option>
+                  <option value="high">High (Urgent)</option>
+                  <option value="medium">Medium (Normal)</option>
+                  <option value="low">Low (Routine)</option>
                 </select>
               </div>
             </div>
@@ -355,7 +341,7 @@ export const FieldWorkerPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-slate-300">
-                  {strings.labelDescription} *
+                  Detailed Description *
                 </label>
                 <button
                   type="button"
