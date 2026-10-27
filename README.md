@@ -158,14 +158,74 @@ Field devices operating in rural zones suffer from rapid battery drain and limit
 
 ---
 
-## 8. Verification & Test Results
+---
 
-- **Backend Pytest Suite**: 6 tests passing (`test_health_check`, `test_create_and_get_task`, `test_sync_push_new_offline_task`, `test_sync_push_merge_newer_revision`, `test_sync_push_conflict_detection`, `test_sync_pull`).
-- **Frontend TypeScript & Vite Build**: Compiles cleanly with zero errors (`dist/index.html`, `dist/assets/index.js`, `dist/assets/index.css`).
-- **PWA Ready**: Web App Manifest (`manifest.json`) and Service Worker (`sw.js`) configured for offline caching.
+## 8. Smart Task Priority Assistant & Smart Offline Sync Monitor
+
+### Feature 1: Smart Task Priority Assistant
+The Smart Task Priority Assistant is an autonomous, transparent, 100% offline rule engine ([frontend/src/services/priorityAssistant.ts](file:///c:/Users/madha/Downloads/Nithin/frontend/src/services/priorityAssistant.ts)) that dynamically evaluates field incidents without requiring cloud AI APIs or internet access.
+
+- **Deterministic Urgency Scoring (0–100 Scale)**:
+  - **Critical Keywords (+25 to +40 pts)**: Detects immediate hazards such as `contamination`, `epidemic`, `outbreak`, `collapse`, `failure`, `broken`, `hazard`, and `flood`.
+  - **Sensitive Infrastructure (+20 pts)**: Recognizes institutions like `school`, `hospital`, `clinic`, `ward`, and `daycare`.
+  - **Domain Base Weights (+15 to +30 pts)**: `healthcare` (+30), `water_supply` (+25), `infrastructure` (+20), `agriculture` (+15).
+  - **Population Density Scaling (+10 to +25 pts)**: Scales dynamically based on affected headcounts extracted from incident reports.
+  - **Routine Incident Deduction (-25 pts)**: De-escalates routine maintenance keywords like `routine`, `inspection`, `annual`, `scheduled`, `minor cosmetic`.
+- **Classification Output**:
+  - `HIGH` (Score $\ge 70$): Immediate intervention required; critical safety hazards or vulnerable populations affected.
+  - `MEDIUM` (Score $35–69$): Scheduled intervention required; moderate disruption or non-acute public impact.
+  - `LOW` (Score $< 35$): Deferrable or routine task; maintenance inspection or cosmetic issues.
+- **Transparent Explanations & Next Action Directives**:
+  - Provides a human-readable **Contextual Reason** (e.g., *"High-impact civic issue affecting school/clinic infrastructure or 50+ residents; requires swift dispatch."*).
+  - Generates a **Practical Suggested Next Action** (e.g., *"Deploy emergency repair technician and allocate potable water relief within 6 hours."*).
+  - Displays a detailed **Factors Breakdown** in the task modal for operational transparency.
+- **Full Backward & Forward Compatibility**:
+  - Automatically maps legacy database priorities (`critical`, `high`, `medium`, `low`) to and from assistant priority levels (`HIGH`, `MEDIUM`, `LOW`).
+  - Filterable on the **Tasks Page** dropdown with instant live updates.
 
 ---
 
-## 9. License
+### Feature 2: Smart Offline Sync Monitor
+The Smart Offline Sync Monitor ([frontend/src/components/SmartSyncMonitor.tsx](file:///c:/Users/madha/Downloads/Nithin/frontend/src/components/SmartSyncMonitor.tsx)) provides real-time operational visibility into data persistence, network status, and replication synchronization.
+
+- **Dual-Layer Connectivity Detection**:
+  - **Browser Interface**: Listens to native `online`/`offline` window events.
+  - **Backend Reachability Probe**: Periodically pings `/api/health` with a 3-second timeout to differentiate between active internet connection and actual backend API accessibility (e.g. captive portals or server downtime).
+  - **Latency Measurement**: Displays round-trip server response time in milliseconds.
+- **Real Application Metric Counters (Powered by IndexedDB/Dexie)**:
+  - **Pending**: Local mutations waiting in the persistent outbox queue.
+  - **Syncing**: Operations currently being transmitted to the server.
+  - **Synced**: Tasks successfully acknowledged and committed by the backend.
+  - **Failed**: Operations that exceeded retry thresholds or encountered non-recoverable errors.
+  - **Conflicts**: Incidents where concurrent edits require 3-way conflict resolution.
+- **Persistent Outbox Queue Inspector**:
+  - Outbox records survive browser refreshes and system restarts in IndexedDB.
+  - Collapsible drawer reveals operation type (`create_task`, `update_task`), entity ID, retry attempts, last error message, and formatted payload preview.
+- **Resilient Retry & Exponential Backoff Policy**:
+  - Calculates backoff delay dynamically: $\text{delay} = \min(30000, 1000 \times 2^{\text{retries}})$.
+  - Max retry cap: 5 attempts before marking as `failed`.
+- **Manual Actions & Concurrency Mutex**:
+  - **Sync Now**: Triggers immediate outbox flush with concurrency lock to avoid duplicate server submissions.
+  - **Retry Failed**: Resets retry counters on failed operations and automatically attempts resynchronization.
+
+---
+
+## 9. Verification & Automated Test Results
+
+- **Frontend Unit Test Suite (`npm test`)**:
+  - 46 unit tests executed via Node.js native test runner in [src/test/priorityAndSync.test.ts](file:///c:/Users/madha/Downloads/Nithin/frontend/src/test/priorityAndSync.test.ts).
+  - **Result**: `46 pass, 0 fail` (100% passing across priority classification, rule weights, legacy mapping, bounded exponential backoff, and outbox idempotency).
+- **Frontend Production Build (`npm run build`)**:
+  - Executed `tsc -b && vite build`.
+  - **Result**: Successfully compiled in 359ms with zero errors.
+- **Backend Automated Pytest Suite (`pytest tests`)**:
+  - 11 automated API, sync, and conflict resolution tests executed via `.venv\Scripts\python -m pytest backend/tests`.
+  - **Result**: `11 passed` in 1.20s.
+- **PWA & Cache Verification**:
+  - High-resolution icons (`icon-192.png`, `icon-512.png`), SVG favicons, Web App Manifest (`manifest.json`), and Service Worker (`sw.js` v3) configured with same-origin selective caching.
+
+---
+
+## 10. License
 
 Open source under the [MIT License](LICENSE). Built for rural resilience and offline-first autonomous AI systems.

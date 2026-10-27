@@ -5,12 +5,18 @@ import { resourceManager } from './resourceManager';
 
 export interface SyncState {
   isSyncing: boolean;
+  isOnline: boolean;
+  isServerReachable: boolean;
+  serverLatencyMs: number | null;
   lastSyncTime: string | null;
   pendingCount: number;
-  lastError: string | null;
+  syncingCount: number;
   syncedCount: number;
+  failedCount: number;
   conflictCount: number;
-  isAutoSyncSuspended?: boolean;
+  lastError: string | null;
+  isAutoSyncSuspended: boolean;
+  consecutiveFailures: number;
 }
 
 type SyncListener = (state: SyncState) => void;
@@ -21,6 +27,8 @@ const MAX_CONSECUTIVE_TRANSIENT_RETRIES = 5;
 
 class SyncManagerService {
   private isSyncing = false;
+  private isServerReachable = false;
+  private serverLatencyMs: number | null = null;
   private lastSyncTime: string | null = null;
   private lastError: string | null = null;
   private isAutoSyncSuspended = false;
@@ -29,40 +37,92 @@ class SyncManagerService {
   private deviceId = 'node-field-01';
 
   constructor() {
-    // Listen for reconnection to auto-sync
+    // Listen for reconnection signals from network simulator
     networkSimulator.subscribe((_, isOnline) => {
-      if (isOnline && !this.isAutoSyncSuspended) {
-        this.triggerSync({ isManual: false }).catch(() => {});
+      if (isOnline) {
+        // Probe backend server reachability when network returns
+        this.checkServerReachability().then(({ reachable }) => {
+          if (reachable && !this.isAutoSyncSuspended) {
+            this.triggerSync({ isManual: false }).catch(() => {});
+          }
+        });
+      } else {
+        this.isServerReachable = false;
+        this.serverLatencyMs = null;
+        this.notify();
       }
     });
 
-    // Periodic poll check every 30 seconds if online AND not suspended
+    // Periodic heartbeat: check server reachability & poll sync every 30s
     if (typeof window !== 'undefined') {
       setInterval(() => {
-        if (
-          networkSimulator.isEffectivelyOnline() && 
-          !this.isSyncing && 
-          !this.isAutoSyncSuspended
-        ) {
-          this.triggerSync({ isManual: false }).catch(() => {});
+        if (networkSimulator.isEffectivelyOnline() && !this.isSyncing) {
+          this.checkServerReachability().then(({ reachable }) => {
+            if (reachable && !this.isAutoSyncSuspended) {
+              this.triggerSync({ isManual: false }).catch(() => {});
+            }
+          });
         }
       }, 30000);
     }
   }
 
+  /**
+   * Pings the backend health endpoint to differentiate between raw network presence
+   * and genuine server reachability.
+   */
+  async checkServerReachability(): Promise<{ reachable: boolean; latencyMs?: number }> {
+    if (!networkSimulator.isEffectivelyOnline()) {
+      this.isServerReachable = false;
+      this.serverLatencyMs = null;
+      await this.notify();
+      return { reachable: false };
+    }
+
+    const start = performance.now();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch('/api/health', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const latency = Math.round(performance.now() - start);
+      this.isServerReachable = res.ok;
+      this.serverLatencyMs = res.ok ? latency : null;
+      await this.notify();
+      return { reachable: res.ok, latencyMs: latency };
+    } catch {
+      this.isServerReachable = false;
+      this.serverLatencyMs = null;
+      await this.notify();
+      return { reachable: false };
+    }
+  }
+
   async getState(): Promise<SyncState> {
     const pendingCount = await db.syncOutbox.where('status').equals('pending').count();
+    const failedCount = await db.syncOutbox.where('status').equals('failed').count();
     const conflictCount = await db.tasks.where('status').equals('conflict').count();
     const syncedCount = await db.tasks.where('status').equals('synced').count();
 
     return {
       isSyncing: this.isSyncing,
+      isOnline: networkSimulator.isEffectivelyOnline(),
+      isServerReachable: this.isServerReachable,
+      serverLatencyMs: this.serverLatencyMs,
       lastSyncTime: this.lastSyncTime,
       pendingCount,
-      lastError: this.lastError,
+      syncingCount: this.isSyncing ? pendingCount : 0,
       syncedCount,
+      failedCount,
       conflictCount,
-      isAutoSyncSuspended: this.isAutoSyncSuspended
+      lastError: this.lastError,
+      isAutoSyncSuspended: this.isAutoSyncSuspended,
+      consecutiveFailures: this.consecutiveTransientFailures
     };
   }
 
@@ -78,14 +138,46 @@ class SyncManagerService {
   }
 
   /**
-   * Resets any suspension state (e.g. when user clicks manual sync)
+   * Enqueues or updates an operational payload in the persistent IndexedDB outbox queue.
+   * Guarantees idempotency by updating existing pending items for the same task.
+   */
+  async enqueueOperation(
+    taskId: string,
+    action: 'create' | 'update' | 'delete',
+    payload: Partial<TaskRecord>
+  ): Promise<void> {
+    const existing = await db.syncOutbox.where('task_id').equals(taskId).first();
+    if (existing && existing.status !== 'conflict') {
+      await db.syncOutbox.update(existing.id, {
+        action,
+        payload: { ...existing.payload, ...payload },
+        status: 'pending',
+        retry_count: 0,
+        last_error: null
+      });
+    } else {
+      await db.syncOutbox.add({
+        id: `outbox-${taskId}-${Date.now()}`,
+        task_id: taskId,
+        action,
+        payload,
+        status: 'pending',
+        retry_count: 0,
+        created_at: new Date().toISOString()
+      });
+    }
+    await this.notify();
+  }
+
+  /**
+   * Resets any temporary suspension and recovers failed outbox tasks.
    */
   async resetSuspension(): Promise<void> {
     this.isAutoSyncSuspended = false;
     this.consecutiveTransientFailures = 0;
     this.lastError = null;
 
-    // Reset failed outbox items back to pending
+    // Reset failed outbox items back to pending for retry
     const failedItems = await db.syncOutbox.where('status').equals('failed').toArray();
     for (const item of failedItems) {
       await db.syncOutbox.update(item.id, {
@@ -98,6 +190,18 @@ class SyncManagerService {
     await this.notify();
   }
 
+  /**
+   * Explicitly retries all failed operations in the outbox with fresh backoff counters.
+   */
+  async retryFailedOperations(): Promise<{ pushed: number; pulled: number; conflicts: number }> {
+    await this.resetSuspension();
+    return this.triggerSync({ isManual: true });
+  }
+
+  /**
+   * Main synchronization engine: handles batch push, conflict detection, delta pull,
+   * bounded exponential backoff, and state transitions.
+   */
   async triggerSync(options?: { isManual?: boolean }): Promise<{ pushed: number; pulled: number; conflicts: number }> {
     const isManual = options?.isManual ?? false;
 
@@ -106,17 +210,19 @@ class SyncManagerService {
       await this.resetSuspension();
     }
 
+    // Sync Mutex Lock: prevent overlapping sync workers from race conditions
     if (this.isSyncing) {
       return { pushed: 0, pulled: 0, conflicts: 0 };
     }
 
-    // Do not auto-retry if auto-sync is suspended due to permanent errors
+    // Do not auto-retry if auto-sync is suspended due to persistent errors
     if (!isManual && this.isAutoSyncSuspended) {
       return { pushed: 0, pulled: 0, conflicts: 0 };
     }
 
     if (!networkSimulator.isEffectivelyOnline()) {
       this.lastError = 'Device is currently offline. Tasks remain safely queued in local outbox.';
+      this.isServerReachable = false;
       await this.notify();
       return { pushed: 0, pulled: 0, conflicts: 0 };
     }
@@ -130,7 +236,7 @@ class SyncManagerService {
     let conflicts = 0;
 
     try {
-      // Flaky 2G simulation delay
+      // Simulate 2G delay if in flaky mode
       if (networkSimulator.isFlaky2G()) {
         await new Promise(r => setTimeout(r, 1200));
       }
@@ -139,7 +245,6 @@ class SyncManagerService {
       const pendingOutbox = await db.syncOutbox.where('status').equals('pending').toArray();
       
       if (pendingOutbox.length > 0) {
-        // Collect task payloads
         const tasksToPush: Partial<TaskRecord>[] = [];
         for (const item of pendingOutbox) {
           const task = await db.tasks.get(item.task_id);
@@ -179,12 +284,10 @@ class SyncManagerService {
               })
             });
           } catch (fetchErr: any) {
-            // Network connection error (transient)
             this.handleTransientFailure(pendingOutbox, `Network connection error: ${fetchErr.message}`);
             return { pushed: 0, pulled: 0, conflicts: 0 };
           }
 
-          // Check for permanent vs transient HTTP errors
           if (!pushRes.ok) {
             const status = pushRes.status;
             let errorDetail = `Server returned status ${status} (${pushRes.statusText || 'Error'})`;
@@ -194,17 +297,16 @@ class SyncManagerService {
               if (errJson?.detail) errorDetail += `: ${errJson.detail}`;
               else if (errJson?.message) errorDetail += `: ${errJson.message}`;
             } catch {
-              // Non-JSON response (e.g. static HTML 405 error page)
+              // HTML / non-JSON error
             }
 
             if (PERMANENT_ERROR_STATUSES.includes(status)) {
-              // PERMANENT ERROR (e.g. 405 Method Not Allowed, 404, 401, 403)
-              // Suspend auto-retries immediately to avoid flooding network/console
               this.isAutoSyncSuspended = true;
-              this.lastError = `Permanent error: ${errorDetail}. Auto-sync paused to avoid console spam. Click 'Trigger Full Sync Now' to retry.`;
+              this.lastError = `Permanent error: ${errorDetail}. Auto-sync suspended. Click 'Sync Now' or 'Retry Failed' after addressing.`;
               
               for (const item of pendingOutbox) {
                 await db.syncOutbox.update(item.id, {
+                  status: 'failed',
                   last_error: errorDetail
                 });
               }
@@ -213,7 +315,6 @@ class SyncManagerService {
               await this.notify();
               return { pushed: 0, pulled: 0, conflicts: 0 };
             } else {
-              // TRANSIENT ERROR (500, 502, 503, 504)
               this.handleTransientFailure(pendingOutbox, errorDetail);
               return { pushed: 0, pulled: 0, conflicts: 0 };
             }
@@ -223,6 +324,7 @@ class SyncManagerService {
           const pushData = await pushRes.json();
           this.consecutiveTransientFailures = 0;
           this.isAutoSyncSuspended = false;
+          this.isServerReachable = true;
 
           for (const ack of pushData.results) {
             const outboxItem = pendingOutbox.find(o => o.task_id === ack.task_id);
@@ -342,6 +444,7 @@ class SyncManagerService {
       this.lastSyncTime = new Date().toISOString();
       this.lastError = null;
       this.consecutiveTransientFailures = 0;
+      this.isServerReachable = true;
     } catch (err: any) {
       this.lastError = err.message || 'Error during synchronization.';
     } finally {
@@ -354,6 +457,7 @@ class SyncManagerService {
 
   private async handleTransientFailure(pendingOutbox: any[], errorDetail: string): Promise<void> {
     this.consecutiveTransientFailures++;
+    this.isServerReachable = false;
     
     for (const item of pendingOutbox) {
       const newRetries = (item.retry_count || 0) + 1;
@@ -367,7 +471,7 @@ class SyncManagerService {
 
     if (this.consecutiveTransientFailures >= MAX_CONSECUTIVE_TRANSIENT_RETRIES) {
       this.isAutoSyncSuspended = true;
-      this.lastError = `Temporary failures reached retry limit (${MAX_CONSECUTIVE_TRANSIENT_RETRIES}). Auto-sync paused. Click 'Trigger Full Sync Now' to retry.`;
+      this.lastError = `Temporary failures reached retry limit (${MAX_CONSECUTIVE_TRANSIENT_RETRIES}). Auto-sync paused. Click 'Retry Failed Tasks' to re-attempt.`;
     } else {
       this.lastError = `${errorDetail} (Retry ${this.consecutiveTransientFailures}/${MAX_CONSECUTIVE_TRANSIENT_RETRIES})`;
     }

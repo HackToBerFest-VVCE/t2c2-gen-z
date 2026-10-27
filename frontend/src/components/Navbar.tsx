@@ -32,11 +32,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
   const [resources, setResources] = useState<ResourceStatus>(resourceManager.getStatus());
   const [syncState, setSyncState] = useState<SyncState>({
     isSyncing: false,
+    isOnline: true,
+    isServerReachable: false,
+    serverLatencyMs: null,
     lastSyncTime: null,
     pendingCount: 0,
+    syncingCount: 0,
     lastError: null,
     syncedCount: 0,
-    conflictCount: 0
+    failedCount: 0,
+    conflictCount: 0,
+    isAutoSyncSuspended: false,
+    consecutiveFailures: 0
   });
 
   useEffect(() => {

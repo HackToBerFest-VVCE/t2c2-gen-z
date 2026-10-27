@@ -1,46 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { 
-  CloudUpload, 
-  RefreshCw, 
-  Wifi, 
-  WifiOff, 
-  Radio, 
-  CheckCircle2, 
   AlertTriangle, 
-  Clock, 
-  Server, 
   ShieldCheck, 
-  Database,
-  ArrowRight
+  Database
 } from 'lucide-react';
 import { db } from '../db';
-import { syncManager, type SyncState } from '../services/syncManager';
-import { networkSimulator, type NetworkMode } from '../services/networkSimulator';
+import { syncManager } from '../services/syncManager';
 import { ConflictResolverModal } from '../components/ConflictResolverModal';
-import type { TaskRecord, SyncQueueItem } from '../types';
+import { SmartSyncMonitor } from '../components/SmartSyncMonitor';
+import type { TaskRecord } from '../types';
 
 export const SyncHubPage: React.FC = () => {
-  const [syncState, setSyncState] = useState<SyncState>({
-    isSyncing: false,
-    lastSyncTime: null,
-    pendingCount: 0,
-    lastError: null,
-    syncedCount: 0,
-    conflictCount: 0
-  });
-  const [netMode, setNetMode] = useState<NetworkMode>(networkSimulator.getMode());
   const [conflictTask, setConflictTask] = useState<TaskRecord | null>(null);
   const [conflictServerTask, setConflictServerTask] = useState<Partial<TaskRecord> | null>(null);
-
-  useEffect(() => {
-    const unsubSync = syncManager.subscribe(s => setSyncState(s));
-    const unsubNet = networkSimulator.subscribe(m => setNetMode(m));
-    return () => {
-      unsubSync();
-      unsubNet();
-    };
-  }, []);
 
   const outboxItems = useLiveQuery(() => db.syncOutbox.toArray()) || [];
   const auditLogs = useLiveQuery(() => db.auditLogs.orderBy('timestamp').reverse().limit(30).toArray()) || [];
@@ -66,92 +39,10 @@ export const SyncHubPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => syncManager.triggerSync({ isManual: true })}
-          disabled={syncState.isSyncing || netMode === 'offline'}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg ${
-            syncState.isSyncing
-              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse'
-              : netMode === 'offline'
-              ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-              : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-          }`}
-        >
-          <RefreshCw className={`w-4 h-4 ${syncState.isSyncing ? 'animate-spin' : ''}`} />
-          <span>{syncState.isSyncing ? 'Synchronizing Outbox...' : 'Trigger Full Sync Now'}</span>
-        </button>
       </div>
 
-      {/* Suspension / Permanent Error Notice */}
-      {syncState.lastError && (
-        <div className={`p-4 rounded-xl border flex items-start justify-between gap-3 text-xs ${
-          syncState.isAutoSyncSuspended
-            ? 'bg-rose-950/40 border-rose-500/40 text-rose-200'
-            : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
-        }`}>
-          <div className="flex items-start space-x-2.5">
-            <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${syncState.isAutoSyncSuspended ? 'text-rose-400' : 'text-amber-400'}`} />
-            <div>
-              <span className="font-bold uppercase tracking-wider block">
-                {syncState.isAutoSyncSuspended ? 'Automatic Synchronization Suspended' : 'Sync Warning'}
-              </span>
-              <p className="mt-0.5 text-slate-300 font-mono text-[11px] leading-relaxed">
-                {syncState.lastError}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => syncManager.triggerSync({ isManual: true })}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs shrink-0 transition-colors"
-          >
-            Reset & Retry
-          </button>
-        </div>
-      )}
-
-      {/* Sync Status Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        
-        <div className="glass-panel rounded-2xl p-4 border border-slate-800">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span>Pending Outbox Queue</span>
-            <CloudUpload className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-2xl font-mono font-extrabold text-amber-400">
-            {syncState.pendingCount}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Awaiting reconnection to server
-          </p>
-        </div>
-
-        <div className="glass-panel rounded-2xl p-4 border border-slate-800">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span>Synchronized on Server</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-2xl font-mono font-extrabold text-emerald-400">
-            {syncState.syncedCount}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Acknowledged & stored in database
-          </p>
-        </div>
-
-        <div className="glass-panel rounded-2xl p-4 border border-slate-800">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span>Revision Conflicts</span>
-            <AlertTriangle className="w-4 h-4 text-rose-400" />
-          </div>
-          <div className="text-2xl font-mono font-extrabold text-rose-400">
-            {conflictingTasks.length}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Require 3-way manual resolution
-          </p>
-        </div>
-
-      </div>
+      {/* Smart Offline Sync Monitor */}
+      <SmartSyncMonitor />
 
       {/* Conflicts section if any */}
       {conflictingTasks.length > 0 && (

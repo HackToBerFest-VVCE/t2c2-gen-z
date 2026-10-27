@@ -20,6 +20,8 @@ import type { TaskRecord, AgentActionItem } from '../types';
 import { getCategoryBadge } from './TaskCard';
 import { db } from '../db';
 import { agentRunner } from '../agent/runner';
+import { evaluateTaskPriority } from '../services/priorityAssistant';
+import { syncManager } from '../services/syncManager';
 
 interface TaskDetailModalProps {
   task: TaskRecord;
@@ -35,6 +37,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [currentTask, setCurrentTask] = useState<TaskRecord>(task);
   const [isReRunning, setIsReRunning] = useState(false);
   const [activeTab, setActiveTab] = useState<'actions' | 'reasoning' | 'metadata'>('actions');
+
+  const priorityEval = evaluateTaskPriority(currentTask);
 
   const toggleActionItem = async (actionId: string) => {
     if (!currentTask.agent_output?.actions) return;
@@ -57,16 +61,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
     setCurrentTask(updatedTask);
     await db.tasks.put(updatedTask);
-    // Queue update in outbox
-    await db.syncOutbox.put({
-      id: `outbox-${updatedTask.id}-${Date.now()}`,
-      task_id: updatedTask.id,
-      action: 'update',
-      payload: updatedTask,
-      status: 'pending',
-      retry_count: 0,
-      created_at: new Date().toISOString()
-    });
+    // Queue update in persistent outbox via idempotent syncManager
+    await syncManager.enqueueOperation(updatedTask.id, 'update', updatedTask);
     if (onTaskUpdated) onTaskUpdated();
   };
 
@@ -81,15 +77,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
     setCurrentTask(updatedTask);
     await db.tasks.put(updatedTask);
-    await db.syncOutbox.put({
-      id: `outbox-${updatedTask.id}-${Date.now()}`,
-      task_id: updatedTask.id,
-      action: 'update',
-      payload: updatedTask,
-      status: 'pending',
-      retry_count: 0,
-      created_at: new Date().toISOString()
-    });
+    await syncManager.enqueueOperation(updatedTask.id, 'update', updatedTask);
 
     await db.auditLogs.add({
       id: `audit-verify-${updatedTask.id}-${Date.now()}`,
@@ -219,6 +207,89 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         {/* Content Body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1">
           
+          {/* Smart Task Priority Assistant Panel */}
+          <div className="p-4 rounded-xl border bg-slate-900/90 border-slate-750 shadow-lg space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Smart Task Priority Assistant
+                </h4>
+                <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${
+                  priorityEval.priority === 'HIGH'
+                    ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                    : priorityEval.priority === 'MEDIUM'
+                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                }`}>
+                  {priorityEval.priority} Priority ({priorityEval.score}/100)
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-2 text-[10px] font-mono text-slate-400">
+                <span>Urgency Grade:</span>
+                <span className={`font-bold uppercase ${
+                  priorityEval.urgencyLevel === 'immediate' ? 'text-rose-400' :
+                  priorityEval.urgencyLevel === 'high' ? 'text-amber-400' : 'text-cyan-400'
+                }`}>
+                  {priorityEval.urgencyLevel}
+                </span>
+              </div>
+            </div>
+
+            {/* Urgency Progress Bar */}
+            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-500 ${
+                  priorityEval.priority === 'HIGH' ? 'bg-gradient-to-r from-amber-500 to-rose-500' :
+                  priorityEval.priority === 'MEDIUM' ? 'bg-gradient-to-r from-cyan-500 to-amber-500' :
+                  'bg-gradient-to-r from-emerald-500 to-cyan-500'
+                }`}
+                style={{ width: `${priorityEval.score}%` }}
+              />
+            </div>
+
+            {/* Reason & Action Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800/80">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block mb-1">
+                  Deterministic Classification Reason
+                </span>
+                <p className="text-slate-200 text-xs leading-relaxed">
+                  {priorityEval.reason}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/30">
+                <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider block mb-1">
+                  Practical Suggested Next Action
+                </span>
+                <p className="text-emerald-200 text-xs leading-relaxed">
+                  {priorityEval.suggestedAction}
+                </p>
+              </div>
+            </div>
+
+            {/* Rule Factors */}
+            {priorityEval.factors.length > 0 && (
+              <div className="pt-1">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block mb-1.5">
+                  Rule Evaluation Factors:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {priorityEval.factors.map((factor, idx) => (
+                    <span 
+                      key={idx}
+                      className="px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700/60 text-[10px] text-slate-300 font-mono"
+                    >
+                      {factor}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Description Section */}
           <div className="p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/60">
             <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">

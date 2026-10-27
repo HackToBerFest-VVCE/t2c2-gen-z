@@ -18,6 +18,7 @@ import {
 import { db } from '../db';
 import { TaskCard } from '../components/TaskCard';
 import { ResourceWidget } from '../components/ResourceWidget';
+import { SmartSyncMonitor } from '../components/SmartSyncMonitor';
 import { TaskDetailModal } from '../components/TaskDetailModal';
 import { AgentExecutionVisualizer } from '../components/AgentExecutionVisualizer';
 import { agentRunner } from '../agent/runner';
@@ -176,6 +177,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           onClose={() => setShowVisualizer(false)}
         />
       )}
+
+      {/* Smart Offline Sync Monitor */}
+      <SmartSyncMonitor onNavigateToSyncHub={() => onNavigate('sync')} />
 
       {/* Device Resource Governance Widget */}
       <ResourceWidget />

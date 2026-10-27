@@ -19,6 +19,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import type { TaskRecord, TaskCategory } from '../types';
+import { evaluateTaskPriority } from '../services/priorityAssistant';
 
 interface TaskCardProps {
   task: TaskRecord;
@@ -53,13 +54,15 @@ export const getCategoryBadge = (category: TaskCategory) => {
 };
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
-  const isCritical = task.priority === 'critical';
-  const isHigh = task.priority === 'high';
+  const priorityEval = evaluateTaskPriority(task);
+  const isHigh = priorityEval.priority === 'HIGH';
+  const isMed = priorityEval.priority === 'MEDIUM';
 
   return (
     <div 
       onClick={onClick}
       className="glass-panel glass-panel-hover rounded-xl p-4 transition-all duration-200 cursor-pointer border border-slate-800/80 group hover:shadow-xl hover:shadow-emerald-950/20"
+      aria-label={`Task: ${task.title}. Priority: ${priorityEval.priority}. Reason: ${priorityEval.reason}`}
     >
       <div className="flex items-start justify-between gap-3 mb-2.5">
         
@@ -67,18 +70,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
         <div className="flex flex-wrap items-center gap-1.5">
           {getCategoryBadge(task.category)}
 
-          {/* Priority Pill */}
-          <span className={`text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-            isCritical
-              ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-              : isHigh
-              ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-              : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-          }`}>
+          {/* Smart Priority Assistant Pill */}
+          <span 
+            className={`text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border inline-flex items-center ${
+              isHigh
+                ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                : isMed
+                ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+            }`}
+            title={`Smart Priority: ${priorityEval.priority} (${priorityEval.score}/100) - ${priorityEval.reason}`}
+          >
             <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${
-              isCritical ? 'bg-rose-400 animate-ping' : isHigh ? 'bg-amber-400' : 'bg-blue-400'
+              isHigh ? 'bg-rose-400 animate-ping' : isMed ? 'bg-amber-400' : 'bg-emerald-400'
             }`} />
-            {task.priority}
+            <span>Priority: {priorityEval.priority}</span>
           </span>
         </div>
 
@@ -118,9 +124,24 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
       </h4>
 
       {/* Description Snippet */}
-      <p className="text-xs text-slate-300/80 line-clamp-2 mb-3 leading-relaxed">
+      <p className="text-xs text-slate-300/80 line-clamp-2 mb-2 leading-relaxed">
         {task.agent_output?.summary || task.description}
       </p>
+
+      {/* Smart Priority Assistant Directive Snippet */}
+      <div className="mb-3 p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] space-y-1">
+        <div className="flex items-start space-x-1.5 text-slate-300">
+          <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+          <p className="line-clamp-1 text-slate-300">
+            <span className="font-semibold text-emerald-300 mr-1">Why {priorityEval.priority}:</span>
+            <span className="text-slate-400">{priorityEval.reason}</span>
+          </p>
+        </div>
+        <div className="pl-5 text-[10px] text-slate-400 line-clamp-1">
+          <span className="text-slate-400 font-semibold uppercase">Action:</span>{' '}
+          <span className="text-slate-300">{priorityEval.suggestedAction}</span>
+        </div>
+      </div>
 
       {/* Meta Footer (Location + Population + Actions Count + Verification) */}
       <div className="flex flex-wrap items-center justify-between pt-2.5 border-t border-slate-800/80 text-[11px] text-slate-400 gap-2">

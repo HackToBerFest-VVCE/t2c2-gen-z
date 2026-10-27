@@ -13,6 +13,7 @@ import { db } from '../db';
 import { TaskCard } from '../components/TaskCard';
 import { TaskDetailModal } from '../components/TaskDetailModal';
 import { syncManager } from '../services/syncManager';
+import { matchesPriorityFilter } from '../services/priorityAssistant';
 import type { TaskRecord, TaskCategory, TaskPriority, TaskStatus } from '../types';
 
 interface TasksPageProps {
@@ -43,8 +44,8 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
     if (selectedCategory !== 'all' && task.category !== selectedCategory) return false;
     // Status filter
     if (selectedStatus !== 'all' && task.status !== selectedStatus) return false;
-    // Priority filter
-    if (selectedPriority !== 'all' && task.priority !== selectedPriority) return false;
+    // Priority filter (supports Smart Assistant HIGH, MEDIUM, LOW and legacy priorities)
+    if (selectedPriority !== 'all' && !matchesPriorityFilter(task, selectedPriority)) return false;
 
     return true;
   });
@@ -144,10 +145,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
               className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
             >
               <option value="all">All Priorities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option value="HIGH">High Priority (Urgent/Safety)</option>
+              <option value="MEDIUM">Medium Priority (Moderate)</option>
+              <option value="LOW">Low Priority (Routine)</option>
             </select>
           </div>
 
