@@ -25,6 +25,8 @@ htmlcov/
 *.sqlite3
 fieldpilot.db
 */fieldpilot.db
+uploads/
+*/uploads/
 
 # Build outputs
 dist/

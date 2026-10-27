@@ -5,8 +5,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import engine, Base, SessionLocal
-from .models import TaskModel, AuditLogModel, utc_now
-from .routers import tasks, sync, telemetry
+from .models import TaskModel, ReportModel, AuditLogModel, utc_now
+from .routers import tasks, sync, telemetry, reports, ai
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -30,11 +30,15 @@ app.add_middleware(
 app.include_router(tasks.router, prefix=settings.API_PREFIX)
 app.include_router(sync.router, prefix=settings.API_PREFIX)
 app.include_router(telemetry.router, prefix=settings.API_PREFIX)
+app.include_router(reports.router, prefix=settings.API_PREFIX)
+app.include_router(ai.router, prefix=settings.API_PREFIX)
 
 # Also mount under root to handle Vercel rewrite prefix variations
 app.include_router(tasks.router)
 app.include_router(sync.router)
 app.include_router(telemetry.router)
+app.include_router(reports.router)
+app.include_router(ai.router)
 
 @app.get("/")
 def root():
@@ -131,6 +135,30 @@ def seed_demo_data():
                 details="Initial verified benchmark demo task seeded on backend"
             )
             db.add(audit)
+            db.commit()
+
+        # Seed sample field inspection report if empty
+        report_count = db.query(ReportModel).count()
+        if report_count == 0:
+            demo_report_id = "report-demo-bund-001"
+            sample_report = ReportModel(
+                id=demo_report_id,
+                title="Panchayat Irrigation Canal Embankment Breach",
+                description="Heavy runoff caused a 4-meter breach in the north distributary canal bund. Water flooding adjacent arecanut plantation and submerging pathway.",
+                category="agriculture",
+                severity="high",
+                latitude=12.9716,
+                longitude=77.5946,
+                location_name="North Distributary Canal Bund, Channapatna Sector",
+                worker_id="field-officer-karnataka-01",
+                notes="Sandbags required immediately to prevent further soil erosion.",
+                ai_summary="High severity irrigation canal breach threatening adjacent plantation; requires emergency sandbag reinforcement.",
+                ai_status="completed",
+                sync_status="synced",
+                revision=1,
+                created_at=utc_now()
+            )
+            db.add(sample_report)
             db.commit()
     finally:
         db.close()

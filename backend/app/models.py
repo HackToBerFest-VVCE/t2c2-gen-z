@@ -60,3 +60,35 @@ class DeviceTelemetryModel(Base):
     storage_total_bytes = Column(Integer, default=0)
     pending_outbox_count = Column(Integer, default=0)
     last_seen = Column(DateTime, default=utc_now)
+
+class ReportModel(Base):
+    __tablename__ = "reports"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    category = Column(String(64), nullable=False, default="infrastructure")
+    severity = Column(String(32), nullable=False, default="medium")
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    location_name = Column(String(255), nullable=True, default="")
+    worker_id = Column(String(64), nullable=False, default="field-worker-01")
+    notes = Column(Text, nullable=True)
+    ai_summary = Column(Text, nullable=True)
+    ai_status = Column(String(32), nullable=False, default="not_requested")
+    sync_status = Column(String(32), nullable=False, default="synced")
+    revision = Column(Integer, default=1)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+class ReportAttachmentModel(Base):
+    __tablename__ = "report_attachments"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    report_id = Column(String(36), nullable=False)
+    filename = Column(String(255), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    mime_type = Column(String(64), nullable=False)
+    size_bytes = Column(Integer, default=0)
+    storage_path = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=utc_now)

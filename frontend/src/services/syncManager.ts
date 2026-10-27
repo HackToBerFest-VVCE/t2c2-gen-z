@@ -422,6 +422,14 @@ class SyncManagerService {
         // Non-critical pull failure
       }
 
+      // Step 2b: Synchronize Pending Field Reports & Attachments
+      try {
+        const { fieldReportService } = await import('./fieldReportService');
+        await fieldReportService.syncAllPendingReports();
+      } catch (err) {
+        console.warn('Field reports background sync non-critical failure:', err);
+      }
+
       // Step 3: Telemetry Reporting
       const resStatus = resourceManager.getStatus();
       const currentPending = await db.syncOutbox.where('status').equals('pending').count();

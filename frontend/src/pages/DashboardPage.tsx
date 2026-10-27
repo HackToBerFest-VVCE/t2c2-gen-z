@@ -13,7 +13,9 @@ import {
   HeartPulse, 
   Building2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Mic,
+  FileText
 } from 'lucide-react';
 import { db } from '../db';
 import { TaskCard } from '../components/TaskCard';
@@ -124,6 +126,53 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Hackathon Features: Quick Launch Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <div 
+          onClick={() => onNavigate('voice')}
+          className="glass-panel p-5 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/30 to-slate-900/60 hover:border-emerald-400/60 cursor-pointer transition-all hover:scale-[1.01] group flex items-start justify-between"
+        >
+          <div className="space-y-1.5 pr-4">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Multilingual Assistant</span>
+            </div>
+            <h3 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors">
+              OfflineFirst Voice Copilot
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Speak naturally in Kannada, Hindi, Telugu, Tamil, or English. Verified agricultural advisories for rural farmers with zero cloud dependence.
+            </p>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-all">
+            <Mic className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => onNavigate('field')}
+          className="glass-panel p-5 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/30 to-slate-900/60 hover:border-cyan-400/60 cursor-pointer transition-all hover:scale-[1.01] group flex items-start justify-between"
+        >
+          <div className="space-y-1.5 pr-4">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">Offline Field Inspection</span>
+            </div>
+            <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors">
+              Offline Field Worker Mode
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Capture infrastructure reports, camera photographs, and GPS coordinates durably in IndexedDB. Safe background replication upon reconnect.
+            </p>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-all">
+            <FileText className="w-6 h-6" />
+          </div>
+        </div>
+
       </div>
 
       {/* KPI Cards */}

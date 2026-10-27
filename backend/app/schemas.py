@@ -122,3 +122,96 @@ class AuditLogResponse(BaseModel):
     actor: str
     details: str
     timestamp: datetime
+
+# Field Report Schemas
+class ReportAttachmentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    report_id: str
+    filename: str
+    original_name: str
+    mime_type: str
+    size_bytes: int
+    created_at: datetime
+    url: Optional[str] = None
+
+class ReportBase(BaseModel):
+    title: str
+    description: str
+    category: str = "infrastructure"
+    severity: str = "medium"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location_name: Optional[str] = ""
+    worker_id: str = "field-worker-01"
+    notes: Optional[str] = None
+    ai_summary: Optional[str] = None
+    ai_status: str = "not_requested"
+    revision: int = 1
+
+class ReportCreate(ReportBase):
+    id: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+class ReportUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    severity: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location_name: Optional[str] = None
+    worker_id: Optional[str] = None
+    notes: Optional[str] = None
+    ai_summary: Optional[str] = None
+    ai_status: Optional[str] = None
+    revision: Optional[int] = None
+
+class ReportResponse(ReportBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    sync_status: str
+    created_at: datetime
+    updated_at: datetime
+    attachments: list[ReportAttachmentResponse] = []
+
+# AI Schemas
+class AIChatMessage(BaseModel):
+    role: str  # 'user' | 'model' | 'system'
+    content: str
+
+class AIChatRequest(BaseModel):
+    prompt: str
+    language: str = "kn-IN"  # Default Kannada
+    history: list[AIChatMessage] = []
+    mode: str = "hybrid"  # 'online' | 'hybrid' | 'strict_offline'
+    context_data: Optional[dict[str, Any]] = None
+
+class AIChatResponse(BaseModel):
+    reply: str
+    language: str
+    provider_used: str  # 'gemini' | 'local_knowledge' | 'offline_rule'
+    execution_mode: str
+    suggested_follow_ups: list[str] = []
+    verified_sources: list[str] = []
+    error: Optional[str] = None
+
+class AIReportAnalysisRequest(BaseModel):
+    title: str
+    description: str
+    category: Optional[str] = None
+    severity: Optional[str] = None
+    notes: Optional[str] = None
+    language: str = "en"
+    mode: str = "hybrid"
+
+class AIReportAnalysisResponse(BaseModel):
+    summary: str
+    suggested_category: str
+    suggested_severity: str
+    missing_information: list[str] = []
+    supervisor_notes: str
+    confidence_score: float = 0.85
+    provider_used: str

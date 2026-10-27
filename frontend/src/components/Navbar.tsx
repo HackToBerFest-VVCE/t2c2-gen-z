@@ -15,11 +15,17 @@ import {
   RefreshCw, 
   Sliders,
   CheckCircle2,
-  ShieldCheck
+  ShieldCheck,
+  Mic,
+  FileText,
+  Server,
+  Sparkles
 } from 'lucide-react';
 import { networkSimulator, type NetworkMode } from '../services/networkSimulator';
 import { resourceManager, type ResourceStatus } from '../services/resourceManager';
 import { syncManager, type SyncState } from '../services/syncManager';
+import { aiProviderService } from '../services/aiProviderService';
+import type { OperatingMode } from '../types';
 
 interface NavbarProps {
   currentTab: string;
@@ -28,6 +34,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
   const [netMode, setNetMode] = useState<NetworkMode>(networkSimulator.getMode());
+  const [aiMode, setAiMode] = useState<OperatingMode>(aiProviderService.getMode());
   const [isOnline, setIsOnline] = useState<boolean>(networkSimulator.isEffectivelyOnline());
   const [resources, setResources] = useState<ResourceStatus>(resourceManager.getStatus());
   const [syncState, setSyncState] = useState<SyncState>({
@@ -53,11 +60,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
     });
     const unsubRes = resourceManager.subscribe(s => setResources(s));
     const unsubSync = syncManager.subscribe(s => setSyncState(s));
+    const unsubAi = aiProviderService.subscribe(s => setAiMode(s.mode));
 
     return () => {
       unsubNet();
       unsubRes();
       unsubSync();
+      unsubAi();
     };
   }, []);
 
@@ -85,52 +94,76 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
           </div>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center space-x-1">
+          <nav className="hidden lg:flex items-center space-x-1">
             <button
               onClick={() => onSelectTab('dashboard')}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 currentTab === 'dashboard'
                   ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4" />
+              <LayoutDashboard className="w-3.5 h-3.5" />
               <span>Dashboard</span>
             </button>
 
             <button
+              onClick={() => onSelectTab('voice')}
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                currentTab === 'voice'
+                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
+                  : 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30'
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5" />
+              <span>Voice Copilot</span>
+            </button>
+
+            <button
+              onClick={() => onSelectTab('field')}
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                currentTab === 'field'
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20'
+                  : 'bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Field Worker</span>
+            </button>
+
+            <button
+              onClick={() => onSelectTab('supervisor')}
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                currentTab === 'supervisor'
+                  ? 'bg-indigo-500 text-white font-bold shadow-md shadow-indigo-500/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Server className="w-3.5 h-3.5" />
+              <span>Supervisor</span>
+            </button>
+
+            <button
               onClick={() => onSelectTab('tasks')}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 currentTab === 'tasks'
                   ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
-              <ClipboardList className="w-4 h-4" />
+              <ClipboardList className="w-3.5 h-3.5" />
               <span>Tasks</span>
             </button>
 
             <button
-              onClick={() => onSelectTab('new')}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentTab === 'new'
-                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-md shadow-emerald-500/20'
-                  : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/40'
-              }`}
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>New Field Task</span>
-            </button>
-
-            <button
               onClick={() => onSelectTab('sync')}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all relative ${
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all relative ${
                 currentTab === 'sync'
                   ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
-              <CloudUpload className={`w-4 h-4 ${syncState.isSyncing ? 'animate-bounce text-emerald-400' : ''}`} />
+              <CloudUpload className={`w-3.5 h-3.5 ${syncState.isSyncing ? 'animate-bounce text-emerald-400' : ''}`} />
               <span>Sync Hub</span>
               {syncState.pendingCount > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950">
@@ -141,26 +174,26 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
 
             <button
               onClick={() => onSelectTab('agent')}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 currentTab === 'agent'
                   ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
-              <Sliders className="w-4 h-4" />
-              <span>Agent Runtime</span>
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Runtime</span>
             </button>
           </nav>
 
-          {/* Right Status Badges (Network + Battery + Sync Status) */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          {/* Right Status Badges */}
+          <div className="flex items-center space-x-2 sm:space-x-2.5">
             
             {/* Sync Status Button */}
             <button
               onClick={() => syncManager.triggerSync({ isManual: true })}
               disabled={syncState.isSyncing || !isOnline}
               title={isOnline ? 'Click to trigger server synchronization' : 'Offline - Outbox queued'}
-              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+              className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                 syncState.isSyncing
                   ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 animate-pulse'
                   : syncState.pendingCount > 0
@@ -168,15 +201,61 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
                   : 'bg-slate-800/70 text-slate-300 border-slate-700/60 hover:bg-slate-800'
               }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${syncState.isSyncing ? 'animate-spin text-cyan-400' : ''}`} />
+              <RefreshCw className={`w-3 h-3 ${syncState.isSyncing ? 'animate-spin text-cyan-400' : ''}`} />
               <span className="hidden sm:inline">
                 {syncState.isSyncing ? 'Syncing...' : syncState.pendingCount > 0 ? `${syncState.pendingCount} Outbox` : 'Synced'}
               </span>
             </button>
 
+            {/* Operating Mode Selector Dropdown */}
+            <div className="relative group">
+              <button
+                className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                  aiMode === 'strict_offline'
+                    ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
+                    : aiMode === 'hybrid'
+                    ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                    : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                }`}
+                title="AI Operating Mode (Online / Hybrid / Strict Offline)"
+              >
+                <Sparkles className="w-3 h-3 text-cyan-400" />
+                <span className="hidden md:inline font-mono uppercase text-[10px]">
+                  {aiMode === 'strict_offline' ? 'Strict Offline' : aiMode === 'hybrid' ? 'Hybrid AI' : 'Online AI'}
+                </span>
+              </button>
+
+              <div className="absolute right-0 mt-1 w-52 py-2 bg-slate-900/95 border border-slate-700/80 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 z-50">
+                <div className="px-3 py-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  AI Operating Mode
+                </div>
+                <button
+                  onClick={() => aiProviderService.setMode('online')}
+                  className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-emerald-500/20 hover:text-emerald-300 flex items-center justify-between"
+                >
+                  <span>Online (Gemini Cloud)</span>
+                  {aiMode === 'online' && <span className="text-emerald-400 font-bold">✓</span>}
+                </button>
+                <button
+                  onClick={() => aiProviderService.setMode('hybrid')}
+                  className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-cyan-500/20 hover:text-cyan-300 flex items-center justify-between"
+                >
+                  <span>Hybrid (Local First + Cloud)</span>
+                  {aiMode === 'hybrid' && <span className="text-cyan-400 font-bold">✓</span>}
+                </button>
+                <button
+                  onClick={() => aiProviderService.setMode('strict_offline')}
+                  className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-rose-500/20 hover:text-rose-300 flex items-center justify-between"
+                >
+                  <span>Strict Offline (Zero Cloud)</span>
+                  {aiMode === 'strict_offline' && <span className="text-rose-400 font-bold">✓</span>}
+                </button>
+              </div>
+            </div>
+
             {/* Battery Indicator Badge */}
             <div 
-              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium border ${
+              className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-mono font-medium border ${
                 resources.lowPowerMode
                   ? 'bg-rose-500/15 text-rose-300 border-rose-500/40 animate-pulse-subtle'
                   : batteryPercent <= 20
@@ -186,11 +265,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               title={`Battery: ${batteryPercent}% ${resources.isCharging ? '(Charging)' : ''} | Low Power Mode: ${resources.lowPowerMode ? 'ON' : 'OFF'}`}
             >
               {resources.isCharging ? (
-                <BatteryCharging className="w-3.5 h-3.5 text-emerald-400" />
+                <BatteryCharging className="w-3 h-3 text-emerald-400" />
               ) : batteryPercent <= 20 ? (
-                <BatteryWarning className="w-3.5 h-3.5 text-rose-400" />
+                <BatteryWarning className="w-3 h-3 text-rose-400" />
               ) : (
-                <Battery className="w-3.5 h-3.5 text-emerald-400" />
+                <Battery className="w-3 h-3 text-emerald-400" />
               )}
               <span>{batteryPercent}%</span>
             </div>
@@ -198,7 +277,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
             {/* Network Mode Simulator Pill */}
             <div className="relative group">
               <button
-                className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                   netMode === 'online'
                     ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/10'
                     : netMode === '2g_flaky'
@@ -206,13 +285,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
                     : 'bg-rose-500/15 text-rose-300 border-rose-500/40'
                 }`}
               >
-                {netMode === 'online' && <Wifi className="w-3.5 h-3.5 text-emerald-400" />}
-                {netMode === '2g_flaky' && <Radio className="w-3.5 h-3.5 text-amber-400 animate-pulse" />}
-                {netMode === 'offline' && <WifiOff className="w-3.5 h-3.5 text-rose-400" />}
-                <span className="font-semibold capitalize">{netMode.replace('_', ' ')}</span>
+                {netMode === 'online' && <Wifi className="w-3 h-3 text-emerald-400" />}
+                {netMode === '2g_flaky' && <Radio className="w-3 h-3 text-amber-400 animate-pulse" />}
+                {netMode === 'offline' && <WifiOff className="w-3 h-3 text-rose-400" />}
+                <span className="font-semibold capitalize text-[11px]">{netMode.replace('_', ' ')}</span>
               </button>
 
-              {/* Quick Dropdown to switch modes easily */}
               <div className="absolute right-0 mt-1 w-48 py-2 bg-slate-900/95 border border-slate-700/80 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 z-50">
                 <div className="px-3 py-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                   Simulate Field Network
@@ -247,41 +325,48 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
       </div>
 
       {/* Mobile Tab Bar */}
-      <div className="flex md:hidden border-t border-slate-800 bg-[#0b111e]/95 px-2 py-1 justify-around text-xs">
+      <div className="flex lg:hidden border-t border-slate-800 bg-[#0b111e]/95 px-2 py-1 justify-around text-xs overflow-x-auto">
         <button
           onClick={() => onSelectTab('dashboard')}
-          className={`flex flex-col items-center py-1 px-2 ${currentTab === 'dashboard' ? 'text-emerald-400' : 'text-slate-400'}`}
+          className={`flex flex-col items-center py-1 px-2 shrink-0 ${currentTab === 'dashboard' ? 'text-emerald-400' : 'text-slate-400'}`}
         >
           <LayoutDashboard className="w-4 h-4 mb-0.5" />
           <span>Dash</span>
         </button>
         <button
+          onClick={() => onSelectTab('voice')}
+          className={`flex flex-col items-center py-1 px-2 shrink-0 ${currentTab === 'voice' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}
+        >
+          <Mic className="w-4 h-4 mb-0.5" />
+          <span>Voice</span>
+        </button>
+        <button
+          onClick={() => onSelectTab('field')}
+          className={`flex flex-col items-center py-1 px-2 shrink-0 ${currentTab === 'field' ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}
+        >
+          <FileText className="w-4 h-4 mb-0.5" />
+          <span>Field</span>
+        </button>
+        <button
+          onClick={() => onSelectTab('supervisor')}
+          className={`flex flex-col items-center py-1 px-2 shrink-0 ${currentTab === 'supervisor' ? 'text-indigo-400' : 'text-slate-400'}`}
+        >
+          <Server className="w-4 h-4 mb-0.5" />
+          <span>Superv</span>
+        </button>
+        <button
           onClick={() => onSelectTab('tasks')}
-          className={`flex flex-col items-center py-1 px-2 ${currentTab === 'tasks' ? 'text-emerald-400' : 'text-slate-400'}`}
+          className={`flex flex-col items-center py-1 px-2 shrink-0 ${currentTab === 'tasks' ? 'text-emerald-400' : 'text-slate-400'}`}
         >
           <ClipboardList className="w-4 h-4 mb-0.5" />
           <span>Tasks</span>
         </button>
         <button
-          onClick={() => onSelectTab('new')}
-          className={`flex flex-col items-center py-1 px-2 ${currentTab === 'new' ? 'text-emerald-400' : 'text-slate-400'}`}
-        >
-          <PlusCircle className="w-4 h-4 mb-0.5" />
-          <span>New</span>
-        </button>
-        <button
           onClick={() => onSelectTab('sync')}
-          className={`flex flex-col items-center py-1 px-2 ${currentTab === 'sync' ? 'text-emerald-400' : 'text-slate-400'}`}
+          className={`flex flex-col items-center py-1 px-2 shrink-0 ${currentTab === 'sync' ? 'text-emerald-400' : 'text-slate-400'}`}
         >
           <CloudUpload className="w-4 h-4 mb-0.5" />
           <span>Sync ({syncState.pendingCount})</span>
-        </button>
-        <button
-          onClick={() => onSelectTab('agent')}
-          className={`flex flex-col items-center py-1 px-2 ${currentTab === 'agent' ? 'text-emerald-400' : 'text-slate-400'}`}
-        >
-          <Sliders className="w-4 h-4 mb-0.5" />
-          <span>Runtime</span>
         </button>
       </div>
     </header>

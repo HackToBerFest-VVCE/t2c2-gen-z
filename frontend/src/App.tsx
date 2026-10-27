@@ -6,6 +6,9 @@ import { TasksPage } from './pages/TasksPage';
 import { NewTaskPage } from './pages/NewTaskPage';
 import { SyncHubPage } from './pages/SyncHubPage';
 import { AgentStudioPage } from './pages/AgentStudioPage';
+import { VoiceCopilotPage } from './pages/VoiceCopilotPage';
+import { FieldWorkerPage } from './pages/FieldWorkerPage';
+import { SupervisorPage } from './pages/SupervisorPage';
 import { initializeDatabase } from './db';
 import { agentRunner } from './agent/runner';
 import { syncManager } from './services/syncManager';
@@ -18,7 +21,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash.replace('#/', '').replace('#', '');
-      if (['dashboard', 'tasks', 'new', 'sync', 'agent'].includes(hash)) {
+      if (['dashboard', 'voice', 'field', 'supervisor', 'tasks', 'new', 'sync', 'agent'].includes(hash)) {
         setCurrentTab(hash);
       }
     };
@@ -66,6 +69,9 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {currentTab === 'dashboard' && <DashboardPage onNavigate={handleSelectTab} />}
+        {currentTab === 'voice' && <VoiceCopilotPage />}
+        {currentTab === 'field' && <FieldWorkerPage />}
+        {currentTab === 'supervisor' && <SupervisorPage />}
         {currentTab === 'tasks' && <TasksPage onNavigate={handleSelectTab} />}
         {currentTab === 'new' && <NewTaskPage onNavigate={handleSelectTab} />}
         {currentTab === 'sync' && <SyncHubPage />}

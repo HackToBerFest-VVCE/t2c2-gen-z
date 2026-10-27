@@ -63,6 +63,8 @@ export const SmartSyncMonitor: React.FC<SmartSyncMonitorProps> = ({
   // Reactive IndexedDB queries
   const outboxItems = useLiveQuery(() => db.syncOutbox.toArray()) || [];
   const totalTasks = useLiveQuery(() => db.tasks.count()) || 0;
+  const totalReports = useLiveQuery(() => db.reports.count()) || 0;
+  const totalAttachments = useLiveQuery(() => db.attachments.count()) || 0;
 
   const handleManualSync = async () => {
     await syncManager.triggerSync({ isManual: true });
@@ -285,6 +287,15 @@ export const SmartSyncMonitor: React.FC<SmartSyncMonitorProps> = ({
           <p className="text-[10px] text-slate-500 mt-0.5">3-way resolution</p>
         </div>
 
+      </div>
+
+      {/* Unified Storage Status Bar */}
+      <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 px-1 pt-1 border-t border-slate-800/80">
+        <div className="flex items-center space-x-1.5">
+          <Database className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Unified Storage: <strong className="text-slate-200">{totalTasks}</strong> Tasks • <strong className="text-slate-200">{totalReports}</strong> Reports • <strong className="text-slate-200">{totalAttachments}</strong> Photos</span>
+        </div>
+        <span className="font-mono text-[10px] text-emerald-400">IndexedDB Persisted</span>
       </div>
 
       {/* Outbox Queue Toggle & Inspector */}
