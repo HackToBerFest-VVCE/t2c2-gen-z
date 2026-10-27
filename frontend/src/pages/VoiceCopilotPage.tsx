@@ -8,10 +8,13 @@ import {
   Image as ImageIcon, 
   Sparkles, 
   ShieldCheck, 
-  HelpCircle 
+  HelpCircle,
+  Globe 
 } from 'lucide-react';
 import { speechService, type SpeechEvent } from '../services/speechService';
 import { aiProviderService, type AIProviderStatus } from '../services/aiProviderService';
+import { languageService } from '../services/languageService';
+import { LanguageSelectorModal } from '../components/LanguageSelectorModal';
 import { db } from '../db';
 import type { VoiceMessage } from '../types';
 
@@ -99,13 +102,14 @@ const SUPPORTED_COPILOT_LANGUAGES: LanguageOption[] = [
 ];
 
 export const VoiceCopilotPage: React.FC = () => {
-  const [selectedLangCode, setSelectedLangCode] = useState<string>('kn-IN');
+  const [selectedLangCode, setSelectedLangCode] = useState<string>(languageService.getLanguage());
   const [speechState, setSpeechState] = useState<string>('idle');
   const [transcript, setTranscript] = useState<string>('');
   const [interimTranscript, setInterimTranscript] = useState<string>('');
   const [textInput, setTextInput] = useState<string>('');
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isLangModalOpen, setIsLangModalOpen] = useState<boolean>(false);
   const [aiStatus, setAiStatus] = useState<AIProviderStatus>({
     mode: aiProviderService.getMode(),
     isBackendReachable: false,
@@ -117,22 +121,39 @@ export const VoiceCopilotPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const activeLangConfig = SUPPORTED_COPILOT_LANGUAGES.find(l => l.code === selectedLangCode) || SUPPORTED_COPILOT_LANGUAGES[0];
+  // Determine active config (either from predefined top-5, or computed from languageService)
+  const activeLangConfig: LanguageOption = (() => {
+    const predefined = SUPPORTED_COPILOT_LANGUAGES.find(l => l.code === selectedLangCode);
+    if (predefined) return predefined;
+
+    const capability = languageService.getLanguageConfig(selectedLangCode);
+    return {
+      code: capability.code,
+      name: capability.name,
+      nativeName: capability.nativeName,
+      badge: `${capability.nativeName} (${capability.name})`,
+      welcome: `Hello! Voice Copilot is ready in ${capability.name} (${capability.nativeName}). Ask questions about crops, pests, or water issues.`,
+      placeholder: `Ask in ${capability.name} (${capability.sampleQuery || '...'})...`,
+      sampleQueries: [
+        { label: `${capability.name} Query`, text: capability.sampleQuery || 'How to treat crop diseases?' }
+      ]
+    };
+  })();
 
   // Initialize and load saved conversation and language
   useEffect(() => {
     const initPage = async () => {
-      let langToUse = 'kn-IN';
+      let langToUse = languageService.getLanguage();
       try {
         const savedLang = await db.settings.get('voice_copilot_language');
         if (savedLang && savedLang.value) {
           langToUse = savedLang.value as string;
-          setSelectedLangCode(langToUse);
         }
       } catch {
         langToUse = 'kn-IN';
       }
 
+      setSelectedLangCode(langToUse);
       speechService.setLanguage(langToUse);
 
       try {
@@ -177,9 +198,15 @@ export const VoiceCopilotPage: React.FC = () => {
       setAiStatus(status);
     });
 
+    const unsubLang = languageService.subscribe((lang) => {
+      setSelectedLangCode(lang);
+      speechService.setLanguage(lang);
+    });
+
     return () => {
       unsubSpeech();
       unsubAI();
+      unsubLang();
       speechService.stopSpeaking();
       speechService.cancel();
     };
@@ -188,6 +215,7 @@ export const VoiceCopilotPage: React.FC = () => {
   // Handle language switch
   const handleSelectLanguage = async (code: string) => {
     setSelectedLangCode(code);
+    await languageService.setLanguage(code);
     speechService.setLanguage(code);
     try {
       await db.settings.put({ key: 'voice_copilot_language', value: code });
@@ -309,6 +337,7 @@ export const VoiceCopilotPage: React.FC = () => {
   };
 
   const isRecording = speechState === 'listening' || speechState === 'recognizing';
+  const isSelectedInTop5 = SUPPORTED_COPILOT_LANGUAGES.some(l => l.code === selectedLangCode);
 
   return (
     <div className="space-y-6">
@@ -337,8 +366,18 @@ export const VoiceCopilotPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Controls: Mode Badge + New Conversation */}
+          {/* Controls: Mode Badge + All Languages Modal Button + New Conversation */}
           <div className="flex flex-wrap items-center gap-2">
+            
+            <button
+              onClick={() => setIsLangModalOpen(true)}
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium transition-all shadow-sm group"
+              title="Browse all 27 Indian & International languages"
+            >
+              <Globe className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-45 transition-transform" />
+              <span>Change Language</span>
+            </button>
+
             <div className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
               <span className={`w-2 h-2 rounded-full ${
                 aiStatus.mode === 'strict_offline' ? 'bg-amber-400 animate-pulse' :
@@ -359,9 +398,13 @@ export const VoiceCopilotPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Phase 5 Priority Language Selection Bar: 1. Kannada, 2. Hindi, 3. Telugu, 4. Tamil, 5. English */}
+        {/* Priority Language Selector Bar: 1. Kannada, 2. Hindi, 3. Telugu, 4. Tamil, 5. English + More */}
         <div className="mt-5 pt-4 border-t border-slate-800/80 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium mr-1">Voice Language:</span>
+          <span className="text-xs text-slate-400 font-medium mr-1 flex items-center space-x-1">
+            <Globe className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Voice Language:</span>
+          </span>
+
           {SUPPORTED_COPILOT_LANGUAGES.map((lang) => {
             const isSelected = selectedLangCode === lang.code;
             return (
@@ -381,6 +424,23 @@ export const VoiceCopilotPage: React.FC = () => {
               </button>
             );
           })}
+
+          {/* Show extra pill if a non-top-5 language is currently selected */}
+          {!isSelectedInTop5 && (
+            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 ring-1 ring-cyan-400">
+              <span>{activeLangConfig.nativeName}</span>
+              <span className="text-[10px] text-slate-900">({activeLangConfig.name})</span>
+            </div>
+          )}
+
+          {/* More Languages Modal Opener */}
+          <button
+            onClick={() => setIsLangModalOpen(true)}
+            className="flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-emerald-300 border border-slate-700/80 transition-all ml-auto"
+          >
+            <span>All 27 Languages</span>
+            <span className="text-xs">→</span>
+          </button>
         </div>
       </div>
 
@@ -452,7 +512,7 @@ export const VoiceCopilotPage: React.FC = () => {
               {isProcessing && (
                 <div className="flex items-center space-x-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl w-max">
                   <Sparkles className="w-4 h-4 animate-spin" />
-                  <span>Preparing advisory response...</span>
+                  <span>Preparing advisory response in {activeLangConfig.name}...</span>
                 </div>
               )}
 
@@ -568,7 +628,7 @@ export const VoiceCopilotPage: React.FC = () => {
             </p>
             <div className="space-y-2 pt-1 text-xs">
               <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                <div className="font-semibold text-slate-200">Arecanut (ಅಡಿಕೆ / सुपारी)</div>
+                <div className="font-semibold text-slate-200">Arecanut (ಅಡಿಕೆ / सुपारी / పోక)</div>
                 <div className="text-[11px] text-slate-400 mt-0.5">Koleroga (Fruit rot) control via 1% Bordeaux mixture prophylaxis.</div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
@@ -605,6 +665,13 @@ export const VoiceCopilotPage: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Accessible 27-Language Selector Modal */}
+      <LanguageSelectorModal
+        isOpen={isLangModalOpen}
+        onClose={() => setIsLangModalOpen(false)}
+        onSelectLanguage={handleSelectLanguage}
+      />
 
     </div>
   );
