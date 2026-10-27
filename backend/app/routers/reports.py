@@ -57,6 +57,8 @@ def create_or_upsert_report(payload: ReportCreate, db: Session = Depends(get_db)
             existing.notes = payload.notes
             existing.ai_summary = payload.ai_summary
             existing.ai_status = payload.ai_status
+            if payload.original_language:
+                existing.original_language = payload.original_language
             existing.revision = payload.revision
             existing.updated_at = now
             db.commit()
@@ -77,6 +79,7 @@ def create_or_upsert_report(payload: ReportCreate, db: Session = Depends(get_db)
         notes=payload.notes,
         ai_summary=payload.ai_summary,
         ai_status=payload.ai_status,
+        original_language=payload.original_language or "en",
         sync_status="synced",
         revision=payload.revision,
         created_at=payload.created_at or now,

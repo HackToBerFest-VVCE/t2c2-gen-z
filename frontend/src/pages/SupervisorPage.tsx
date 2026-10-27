@@ -14,6 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { networkSimulator } from '../services/networkSimulator';
+import { languageService } from '../services/languageService';
 
 interface ServerReport {
   id: string;
@@ -29,6 +30,7 @@ interface ServerReport {
   ai_summary?: string;
   ai_status: string;
   sync_status: string;
+  original_language?: string;
   revision: number;
   created_at: string;
   updated_at: string;
@@ -49,6 +51,16 @@ export const SupervisorPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [activePhotoModal, setActivePhotoModal] = useState<string | null>(null);
+  const [supervisorLang, setSupervisorLang] = useState<string>(languageService.getLanguage());
+  const [translateView, setTranslateView] = useState<boolean>(false);
+
+  useEffect(() => {
+    const unsub = languageService.subscribe(lang => setSupervisorLang(lang));
+    return () => unsub();
+  }, []);
+
+  const supervisorLangConfig = languageService.getLanguageConfig(supervisorLang);
+  const strings = languageService.getStrings(supervisorLang);
 
   const isOnline = networkSimulator.isEffectivelyOnline();
 
@@ -169,6 +181,19 @@ export const SupervisorPage: React.FC = () => {
             <option value="low">Low</option>
           </select>
 
+          <button
+            onClick={() => setTranslateView(!translateView)}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+              translateView 
+                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50 shadow-sm' 
+                : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+            }`}
+            title="Translate summaries for supervisor without modifying stored report"
+          >
+            <Sparkles className="w-3 h-3 text-indigo-400" />
+            <span>{strings.btnTranslate} ({supervisorLangConfig.nativeName})</span>
+          </button>
+
           <span className="text-xs text-slate-500 ml-auto font-mono">
             {reports.length} Synchronized Records
           </span>
@@ -208,8 +233,13 @@ export const SupervisorPage: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="text-[11px] text-indigo-400 font-mono capitalize mb-2">
-                  {r.category.replace('_', ' ')}
+                <div className="flex items-center justify-between gap-2 text-[11px] mb-2">
+                  <span className="text-indigo-400 font-mono capitalize">
+                    {r.category.replace('_', ' ')}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/60 font-mono text-[10px]">
+                    {languageService.getLanguageConfig(r.original_language || 'en').nativeName} ({r.original_language || 'en'})
+                  </span>
                 </div>
 
                 <p className="text-xs text-slate-300 line-clamp-3 leading-relaxed mb-3">
@@ -219,9 +249,16 @@ export const SupervisorPage: React.FC = () => {
                 {/* AI Summary Brief */}
                 {r.ai_summary && (
                   <div className="p-2.5 rounded-xl bg-slate-900/90 border border-indigo-500/20 text-[11px] text-slate-300 space-y-1 mb-3">
-                    <div className="flex items-center space-x-1 font-semibold text-indigo-300">
-                      <Sparkles className="w-3 h-3" />
-                      <span>Executive Brief:</span>
+                    <div className="flex items-center justify-between font-semibold text-indigo-300">
+                      <span className="flex items-center space-x-1">
+                        <Sparkles className="w-3 h-3" />
+                        <span>Executive Brief:</span>
+                      </span>
+                      {translateView && (
+                        <span className="text-[10px] text-emerald-400 font-normal">
+                          Translated to {supervisorLangConfig.nativeName}
+                        </span>
+                      )}
                     </div>
                     <p className="text-slate-400 leading-normal">{r.ai_summary}</p>
                   </div>

@@ -14,6 +14,8 @@ export interface CreateReportInput {
   location_name?: string;
   notes?: string;
   ai_summary?: string;
+  original_language?: string;
+  preferred_language?: string;
   photos: Array<{
     file: File;
     dataUrl: string;
@@ -46,6 +48,8 @@ class FieldReportService {
       ai_summary: input.ai_summary || '',
       ai_status: input.ai_summary ? 'completed' : 'not_requested',
       sync_status: 'pending_sync',
+      original_language: input.original_language || 'en',
+      preferred_language: input.preferred_language || input.original_language || 'en',
       revision: 1,
       created_at: now,
       updated_at: now

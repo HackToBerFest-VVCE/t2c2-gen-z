@@ -77,6 +77,7 @@ class ReportModel(Base):
     ai_summary = Column(Text, nullable=True)
     ai_status = Column(String(32), nullable=False, default="not_requested")
     sync_status = Column(String(32), nullable=False, default="synced")
+    original_language = Column(String(32), nullable=True, default="en")
     revision = Column(Integer, default=1)
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)

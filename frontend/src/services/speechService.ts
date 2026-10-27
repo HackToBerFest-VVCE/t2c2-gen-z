@@ -174,6 +174,29 @@ class SpeechService {
     }
   }
 
+  public getVoiceForLanguage(langCode: string): SpeechSynthesisVoice | null {
+    if (!this.isSynthesisSupported()) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    const target = langCode.toLowerCase();
+    const prefix = langCode.split('-')[0].toLowerCase();
+
+    // 1. Exact match (e.g., 'kn-IN' or 'en-US')
+    const exact = voices.find(v => v.lang.toLowerCase() === target);
+    if (exact) return exact;
+
+    // 2. Prefix match (e.g., 'kn' or 'hi')
+    const prefixMatch = voices.find(v => v.lang.toLowerCase().startsWith(prefix));
+    if (prefixMatch) return prefixMatch;
+
+    return null;
+  }
+
+  public hasVoiceForLanguage(langCode: string): boolean {
+    return this.getVoiceForLanguage(langCode) !== null;
+  }
+
   public speak(text: string, langCode?: string, onEnd?: () => void): void {
     if (!this.isSynthesisSupported()) {
       if (onEnd) onEnd();
@@ -196,8 +219,7 @@ class SpeechService {
     utterance.rate = 0.95; // Slightly slower for clarity in rural and agricultural terms
 
     // Attempt to match installed voice for the target language
-    const voices = window.speechSynthesis.getVoices();
-    const matchingVoice = voices.find(v => v.lang.startsWith(lang.slice(0, 2)));
+    const matchingVoice = this.getVoiceForLanguage(lang);
     if (matchingVoice) {
       utterance.voice = matchingVoice;
     }

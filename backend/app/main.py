@@ -8,8 +8,18 @@ from .database import engine, Base, SessionLocal
 from .models import TaskModel, ReportModel, AuditLogModel, utc_now
 from .routers import tasks, sync, telemetry, reports, ai
 
+from sqlalchemy import text
+
 # Create tables
 Base.metadata.create_all(bind=engine)
+
+# Safe SQLite schema migration for added columns
+with engine.connect() as conn:
+    try:
+        conn.execute(text("ALTER TABLE reports ADD COLUMN original_language VARCHAR(32) DEFAULT 'en'"))
+        conn.commit()
+    except Exception:
+        pass
 
 app = FastAPI(
     title=settings.APP_NAME,

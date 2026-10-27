@@ -148,6 +148,7 @@ class ReportBase(BaseModel):
     notes: Optional[str] = None
     ai_summary: Optional[str] = None
     ai_status: str = "not_requested"
+    original_language: Optional[str] = "en"
     revision: int = 1
 
 class ReportCreate(ReportBase):
@@ -166,6 +167,7 @@ class ReportUpdate(BaseModel):
     notes: Optional[str] = None
     ai_summary: Optional[str] = None
     ai_status: Optional[str] = None
+    original_language: Optional[str] = None
     revision: Optional[int] = None
 
 class ReportResponse(ReportBase):

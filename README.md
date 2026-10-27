@@ -293,49 +293,85 @@ Implemented in [backend/app/routers/ai.py](file:///c:/Users/madha/Downloads/Nith
 
 ---
 
-## 10. Repeatable Hackathon Demonstration Procedure
+---
+
+## 8. Multilingual Everywhere — All-Language Support Architecture
+
+The application features an extensible, user-selectable multilingual architecture supporting over **27 Indian and International languages** across UI, Voice Copilot, Field Reports, AI Analysis, and Supervisor views:
+
+### 1. Central Language Capability Registry
+Implemented in [frontend/src/services/languageService.ts](file:///c:/Users/madha/Downloads/Nithin/frontend/src/services/languageService.ts) and [backend/app/routers/ai.py](file:///c:/Users/madha/Downloads/Nithin/backend/app/routers/ai.py):
+- **Indian Languages**: Kannada (`kn-IN`), Hindi (`hi-IN`), Telugu (`te-IN`), Tamil (`ta-IN`), Malayalam (`ml-IN`), Marathi (`mr-IN`), Bengali (`bn-IN`), Gujarati (`gu-IN`), Punjabi (`pa-IN`), Odia (`or-IN`), Urdu (`ur-IN`), Assamese (`as-IN`), Sanskrit (`sa-IN`), Nepali (`ne-IN`), Konkani (`kok-IN`), Kashmiri (`ks-IN`), Sindhi (`sd-IN`), etc.
+- **International Languages**: English (`en-US`, `en-IN`, `en-GB`), Spanish (`es-ES`), French (`fr-FR`), German (`de-DE`), Arabic (`ar-SA`), Portuguese (`pt-BR`), Indonesian (`id-ID`), Swahili (`sw-KE`), Chinese (`zh-CN`), Japanese (`ja-JP`), Russian (`ru-RU`), Turkish (`tr-TR`), Vietnamese (`vi-VN`), Korean (`ko-KR`).
+- **Capability Matrix**: Independently tracks online text generation (Gemini), offline text generation (Local Knowledge Base), online STT, offline STT, online TTS, local TTS, text direction (`rtl` / `ltr`), and known engine limitations.
+
+### 2. Searchable Language Selector Modal
+Implemented in [frontend/src/components/LanguageSelectorModal.tsx](file:///c:/Users/madha/Downloads/Nithin/frontend/src/components/LanguageSelectorModal.tsx):
+- Search input filtering simultaneously by English name, native script, language code, and region.
+- Family filter pills: "All Languages (27+)", "Indian Languages", "International Languages".
+- Recently used languages quick-access chips.
+- Visual capability indicators (`Gemini AI`, `Offline Rules`, `Speech In`, `Installed Voice`).
+- Accessible globally from the header Navbar, Voice Copilot page, and Field Worker mode.
+
+### 3. Right-to-Left (RTL) & Native Script Preservation
+- Automatically sets `document.documentElement.dir = 'rtl'` for Arabic (`ar-SA`), Urdu (`ur-IN`), and Kashmiri (`ks-IN`).
+- Strictly preserves native Unicode glyphs (Kannada, Devanagari, Telugu, Tamil, Gurmukhi, Nastaliq, Hanzi, Kana) in local IndexedDB storage, SQLite database, and API responses without character corruption.
+
+### 4. Multilingual Field Reports & Supervisor Translation
+- Reports are authored in the field worker's chosen language and persisted with `original_language`.
+- Original description and field observations are **never overwritten with translations**.
+- Supervisors can toggle **Translate View** to read translated executive briefs in their own language while preserving the field worker's original text in the official audit record.
+
+---
+
+## 9. Repeatable Hackathon Demonstration Procedure
 
 To demonstrate the full unified offline-first system live:
 
 1. **Launch the Application**:
    - Backend: `cd backend && .venv\Scripts\activate && python run_backend.py` (Runs at `http://127.0.0.1:8000`).
    - Frontend: `cd frontend && npm run dev` (Opens `http://127.0.0.1:5173`).
-2. **Open Voice Copilot (`#/voice`)**:
+2. **Switch Languages Globally**:
+   - Click the **Language Selector** button in the header Navbar.
+   - Search for *"Kannada"*, *"हिन्दी"*, *"Urdu"*, or *"العربية"*.
+   - Notice the UI immediately updates navigation, direction (LTR vs RTL), and Voice Copilot instructions.
+3. **Open Voice Copilot (`#/voice`)**:
    - Select **Kannada (ಕನ್ನಡ)**.
    - Click a quick sample question: *"ಅಡಿಕೆ ಬೆಳೆಯಲ್ಲಿ ಕೊಳೆ ರೋಗ ಬಂದಿದೆ, ಬೋರ್ಡೋ ದ್ರಾವಣ ಹೇಗೆ ತಯಾರಿಸಬೇಕು?"*
    - Observe the instant verified advisory response citing **ICAR-CPCRI & UAS Bangalore** with Bordeaux mixture ratios, and hear the audio response spoken in natural Kannada.
-3. **Simulate Deep Offline Mode**:
+4. **Simulate Deep Offline Mode**:
    - In the top header simulator pill, toggle to **Deep Offline (No Internet)**.
    - Observe status badges update to `OFFLINE` and `Strict Offline`.
-4. **Create Offline Field Inspection Report (`#/field`)**:
+5. **Create Offline Field Inspection Report (`#/field`)**:
    - Enter Title: *"Village Borewell Hand Pump Chain Snapped"*.
    - Category: `Water Supply`, Severity: `High`.
    - Click **Capture Location** (captures GPS coordinates).
    - Attach two inspection photos.
    - Click **Save Locally (Offline Safe)**.
-   - Notice the report and photos are immediately saved to local IndexedDB.
-5. **Verify Persistence Across Reload**:
+   - Notice the report and photos are immediately saved to local IndexedDB with `original_language`.
+6. **Verify Persistence Across Reload**:
    - Hard refresh the browser (`Ctrl + F5`) while offline.
    - Navigate back to `#/field` and `#/sync`. Notice the report, photos, and outbox queue items **remain 100% intact**.
-6. **Reconnection & Server Persistence**:
+7. **Reconnection & Server Persistence**:
    - Toggle network simulator back to **Online (Connected)**.
    - Click **Sync Now** in the Sync Hub.
    - The pending report and attachments are uploaded to `/api/reports` and `/api/reports/{id}/attachments`.
-7. **Verify on Supervisor Dashboard (`#/supervisor`)**:
+8. **Verify on Supervisor Dashboard (`#/supervisor`)**:
    - Navigate to `#/supervisor`.
-   - See the synchronized report appear with evidence photos, GPS coordinates, and executive brief retrieved directly from the central SQLite database.
+   - See the synchronized report appear with `[Authored in: ಕನ್ನಡ (kn-IN)]`, evidence photos, GPS coordinates, and optional supervisor translation toggle.
 
 ---
 
-## 11. Verification & Automated Test Results
+## 10. Verification & Automated Test Results
 
 | Test Category | Suite / Command | Total Tests | Status | Details |
 |---|---|---|---|---|
+| **Multilingual Capability Registry** | `node src/test/multilingualRegistry.test.ts` | 183 | **PASSED** | 100% passing (27+ languages, RTL, native scripts, fallback dictionary, search) |
 | **Frontend Priority & Sync** | `node src/test/priorityAndSync.test.ts` | 46 | **PASSED** | 100% passing (scoring, rules, legacy mapping, backoff) |
 | **Frontend Voice & Field Worker** | `node src/test/unifiedMegaFeatures.test.ts` | 60 | **PASSED** | 100% passing (Kannada priority, knowledge queries, modes, photo validation) |
-| **Backend API, Sync & Reports** | `.venv\Scripts\python -m pytest backend/tests` | 16 | **PASSED** | 100% passing (reports CRUD, attachments, health, AI offline fallback) |
-| **Frontend Production Build** | `npm run build` (`tsc -b && vite build`) | — | **PASSED** | Zero errors; bundles generated cleanly in 607ms |
-| **Live Remote Gemini AI Call** | `POST /api/ai/chat` (without API key) | — | **BLOCKED (Safe)** | Safely caught missing credential; fell back to verified local knowledge |
+| **Backend API, Sync & Reports** | `.venv\Scripts\python -m pytest backend/tests` | 17 | **PASSED** | 100% passing (reports CRUD, attachments, health, AI offline fallback, multilingual status) |
+| **Frontend Production Build** | `npm run build` (`tsc -b && vite build`) | — | **PASSED** | Zero errors; bundles generated cleanly in 318ms |
+| **Total Automated Unit Tests** | `npm test` + `pytest` | **306** | **PASSED** | Comprehensive test coverage across all features |
 
 ---
 

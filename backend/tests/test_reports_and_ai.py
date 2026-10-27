@@ -11,7 +11,7 @@ def test_ai_status():
     data = res.json()
     assert "provider" in data
     assert "gemini_configured" in data
-    assert len(data["supported_languages"]) == 5
+    assert len(data["supported_languages"]) >= 25
     assert data["supported_languages"][0]["code"] == "kn-IN"
 
 def test_ai_chat_strict_offline():
@@ -26,6 +26,20 @@ def test_ai_chat_strict_offline():
     assert data["execution_mode"] == "strict_offline"
     assert data["provider_used"] in ["local_knowledge", "offline_rule"]
     assert "Bordeaux mixture" in data["reply"] or "ಅಡಿಕೆ" in data["reply"] or "Offline" in data["reply"]
+
+def test_ai_chat_multilingual_fallback():
+    # Test Hindi, Urdu, Spanish, and English fallbacks
+    for lang in ["hi-IN", "ur-IN", "es-ES", "en-US"]:
+        payload = {
+            "prompt": "General crop query",
+            "language": lang,
+            "mode": "hybrid"
+        }
+        res = client.post("/api/ai/chat", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["language"] == lang
+        assert len(data["reply"]) > 5
 
 def test_ai_analyze_report_offline():
     payload = {

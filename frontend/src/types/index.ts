@@ -114,6 +114,8 @@ export interface FieldReport {
   ai_summary?: string;
   ai_status: 'not_requested' | 'pending' | 'processing_local' | 'processing_online' | 'completed' | 'unavailable' | 'failed';
   sync_status: 'draft' | 'pending_sync' | 'syncing' | 'synced' | 'sync_failed';
+  original_language?: string; // Language in which the field report was authored
+  preferred_language?: string; // Author's preferred language code
   revision: number;
   created_at: string;
   updated_at: string;
@@ -152,12 +154,33 @@ export interface VoiceMessage {
   provider_used?: string;
   sources?: string[];
   photo_url?: string;
+  translated_text?: string;
+  transcript_language?: string;
 }
 
-export interface LanguageConfig {
-  code: string;
-  name: string;
-  nativeName: string;
-  priority: number;
+export interface LanguageCapability {
+  code: string;               // BCP-47 language tag (e.g., 'kn-IN', 'hi-IN', 'ar-SA')
+  name: string;               // English name (e.g., 'Kannada')
+  nativeName: string;         // Native script name (e.g., 'ಕನ್ನಡ')
+  region?: string;            // Regional identifier (e.g., 'Karnataka, India')
+  direction?: 'ltr' | 'rtl';  // Text direction for Arabic, Urdu, etc.
+  family: 'Indian' | 'International';
+  priority?: number;
   sampleQuery: string;
+  
+  // Capability matrix (Online vs Offline)
+  textGenOnline: boolean;     // Gemini / Cloud AI generation
+  textGenOffline: boolean;    // Local knowledge base & rule engine
+  sttOnline: boolean;         // Cloud / Web Speech API recognition
+  sttOffline: boolean;        // Offline local speech recognition engine
+  ttsOnline: boolean;         // Cloud speech synthesis
+  ttsOffline: boolean;        // Local Web Speech synthesis voice pack installed
+  autoDetect: boolean;        // Automatic language detection support
+  localModelAvailable: boolean; // Local domain model installed
+  onlineProviderAvailable: boolean; // Cloud Gemini provider available
+  knownLimitations?: string;  // Honest documentation of limitations
 }
+
+// Backwards-compatible alias with LanguageCapability
+export interface LanguageConfig extends LanguageCapability {}
+

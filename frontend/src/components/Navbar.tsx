@@ -19,12 +19,15 @@ import {
   Mic,
   FileText,
   Server,
-  Sparkles
+  Sparkles,
+  Globe
 } from 'lucide-react';
 import { networkSimulator, type NetworkMode } from '../services/networkSimulator';
 import { resourceManager, type ResourceStatus } from '../services/resourceManager';
 import { syncManager, type SyncState } from '../services/syncManager';
 import { aiProviderService } from '../services/aiProviderService';
+import { languageService } from '../services/languageService';
+import { LanguageSelectorModal } from './LanguageSelectorModal';
 import type { OperatingMode } from '../types';
 
 interface NavbarProps {
@@ -37,6 +40,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
   const [aiMode, setAiMode] = useState<OperatingMode>(aiProviderService.getMode());
   const [isOnline, setIsOnline] = useState<boolean>(networkSimulator.isEffectivelyOnline());
   const [resources, setResources] = useState<ResourceStatus>(resourceManager.getStatus());
+  const [currentLang, setCurrentLang] = useState<string>(languageService.getLanguage());
+  const [isLangModalOpen, setIsLangModalOpen] = useState<boolean>(false);
   const [syncState, setSyncState] = useState<SyncState>({
     isSyncing: false,
     isOnline: true,
@@ -61,19 +66,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
     const unsubRes = resourceManager.subscribe(s => setResources(s));
     const unsubSync = syncManager.subscribe(s => setSyncState(s));
     const unsubAi = aiProviderService.subscribe(s => setAiMode(s.mode));
+    const unsubLang = languageService.subscribe(lang => setCurrentLang(lang));
 
     return () => {
       unsubNet();
       unsubRes();
       unsubSync();
       unsubAi();
+      unsubLang();
     };
   }, []);
 
+  const langConfig = languageService.getLanguageConfig(currentLang);
+  const strings = languageService.getStrings(currentLang);
   const batteryPercent = Math.round(resources.batteryLevel * 100);
 
   return (
-    <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 bg-[#0b111e]/90">
+    <>
+      <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 bg-[#0b111e]/90">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
@@ -104,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>Dashboard</span>
+              <span>{strings.navDashboard}</span>
             </button>
 
             <button
@@ -116,7 +126,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <Mic className="w-3.5 h-3.5" />
-              <span>Voice Copilot</span>
+              <span>{strings.navVoice}</span>
             </button>
 
             <button
@@ -128,7 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Field Worker</span>
+              <span>{strings.navField}</span>
             </button>
 
             <button
@@ -140,7 +150,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <Server className="w-3.5 h-3.5" />
-              <span>Supervisor</span>
+              <span>{strings.navSupervisor}</span>
             </button>
 
             <button
@@ -152,7 +162,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <ClipboardList className="w-3.5 h-3.5" />
-              <span>Tasks</span>
+              <span>{strings.navTasks}</span>
             </button>
 
             <button
@@ -164,7 +174,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <CloudUpload className={`w-3.5 h-3.5 ${syncState.isSyncing ? 'animate-bounce text-emerald-400' : ''}`} />
-              <span>Sync Hub</span>
+              <span>{strings.navSync}</span>
               {syncState.pendingCount > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950">
                   {syncState.pendingCount}
@@ -181,13 +191,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }`}
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>Runtime</span>
+              <span>{strings.navRuntime}</span>
             </button>
           </nav>
 
           {/* Right Status Badges */}
           <div className="flex items-center space-x-2 sm:space-x-2.5">
             
+            {/* Global Language Selector Trigger Button */}
+            <button
+              onClick={() => setIsLangModalOpen(true)}
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border bg-slate-800/90 hover:bg-slate-800 text-slate-200 border-slate-700/80 hover:border-emerald-500/50 transition-all shadow-sm group"
+              title="Change Language (ಅಡಿಕೆ / हिन्दी / English / etc.)"
+            >
+              <Globe className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-45 transition-transform duration-300" />
+              <span className="font-bold text-white tracking-wide">{langConfig.nativeName}</span>
+              <span className="text-[10px] text-slate-400 font-mono hidden xl:inline">({langConfig.code})</span>
+            </button>
+
             {/* Sync Status Button */}
             <button
               onClick={() => syncManager.triggerSync({ isManual: true })}
@@ -368,7 +389,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
           <CloudUpload className="w-4 h-4 mb-0.5" />
           <span>Sync ({syncState.pendingCount})</span>
         </button>
+        <button
+          onClick={() => setIsLangModalOpen(true)}
+          className="flex flex-col items-center py-1 px-2 shrink-0 text-slate-300 hover:text-emerald-400"
+          title="Change Language"
+        >
+          <Globe className="w-4 h-4 mb-0.5 text-emerald-400" />
+          <span className="font-semibold text-[10px]">{langConfig.nativeName}</span>
+        </button>
       </div>
-    </header>
+      </header>
+
+      {/* Searchable Language Selector Modal */}
+      <LanguageSelectorModal 
+        isOpen={isLangModalOpen} 
+        onClose={() => setIsLangModalOpen(false)} 
+      />
+    </>
   );
 };

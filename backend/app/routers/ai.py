@@ -118,6 +118,36 @@ def call_gemini_api(prompt: str, system_instruction: str, history: list = None) 
         logger.error(f"Gemini API invocation error: {err_msg}")
         return "", f"AI service error: {err_msg}"
 
+SUPPORTED_LANGUAGES_REGISTRY = [
+    {"code": "kn-IN", "name": "Kannada", "native_name": "ಕನ್ನಡ", "priority": 1},
+    {"code": "hi-IN", "name": "Hindi", "native_name": "हिन्दी", "priority": 2},
+    {"code": "te-IN", "name": "Telugu", "native_name": "తెలుగు", "priority": 3},
+    {"code": "ta-IN", "name": "Tamil", "native_name": "தமிழ்", "priority": 4},
+    {"code": "en-US", "name": "English (US)", "native_name": "English", "priority": 5},
+    {"code": "en-IN", "name": "English (India)", "native_name": "English (India)"},
+    {"code": "ml-IN", "name": "Malayalam", "native_name": "മലയാളം"},
+    {"code": "mr-IN", "name": "Marathi", "native_name": "मराठी"},
+    {"code": "bn-IN", "name": "Bengali", "native_name": "বাংলা"},
+    {"code": "gu-IN", "name": "Gujarati", "native_name": "ગુજરાતી"},
+    {"code": "pa-IN", "name": "Punjabi", "native_name": "ਪੰਜਾਬੀ"},
+    {"code": "or-IN", "name": "Odia", "native_name": "ଓଡ଼ିଆ"},
+    {"code": "ur-IN", "name": "Urdu", "native_name": "اردو", "direction": "rtl"},
+    {"code": "as-IN", "name": "Assamese", "native_name": "অসমীয়া"},
+    {"code": "es-ES", "name": "Spanish", "native_name": "Español"},
+    {"code": "fr-FR", "name": "French", "native_name": "Français"},
+    {"code": "de-DE", "name": "German", "native_name": "Deutsch"},
+    {"code": "ar-SA", "name": "Arabic", "native_name": "العربية", "direction": "rtl"},
+    {"code": "pt-BR", "name": "Portuguese", "native_name": "Português"},
+    {"code": "id-ID", "name": "Indonesian", "native_name": "Bahasa Indonesia"},
+    {"code": "sw-KE", "name": "Swahili", "native_name": "Kiswahili"},
+    {"code": "zh-CN", "name": "Chinese", "native_name": "简体中文"},
+    {"code": "ja-JP", "name": "Japanese", "native_name": "日本語"},
+    {"code": "ru-RU", "name": "Russian", "native_name": "Русский"},
+    {"code": "tr-TR", "name": "Turkish", "native_name": "Türkçe"},
+    {"code": "vi-VN", "name": "Vietnamese", "native_name": "Tiếng Việt"},
+    {"code": "ko-KR", "name": "Korean", "native_name": "한국어"}
+]
+
 @router.get("/status")
 def get_ai_status():
     """
@@ -129,13 +159,8 @@ def get_ai_status():
         "configured_mode": settings.AI_MODE,
         "gemini_configured": has_key,
         "gemini_model": settings.GEMINI_MODEL,
-        "supported_languages": [
-            {"code": "kn-IN", "name": "Kannada (ಕನ್ನಡ)", "priority": 1},
-            {"code": "hi-IN", "name": "Hindi (हिन्दी)", "priority": 2},
-            {"code": "te-IN", "name": "Telugu (తెలుగు)", "priority": 3},
-            {"code": "ta-IN", "name": "Tamil (தமிழ்)", "priority": 4},
-            {"code": "en-US", "name": "English", "priority": 5}
-        ],
+        "supported_languages": SUPPORTED_LANGUAGES_REGISTRY,
+        "total_languages": len(SUPPORTED_LANGUAGES_REGISTRY),
         "local_knowledge_entries": len(VERIFIED_KNOWLEDGE_BASE)
     }
 
@@ -181,15 +206,22 @@ def voice_copilot_chat(payload: AIChatRequest):
         grounding_context = "\n".join([f"- Crop/Topic: {v['crop']}\n  Guidance: {v['guidance']}\n  Source: {v['source']}" for v in verified_items])
         verified_sources = [f"{v['provenance']} ({v['source']})" for v in verified_items]
 
-    system_prompt = f"""You are the OfflineFirst Voice Copilot for rural farmers and field workers.
-Your primary audience speaks {user_lang}.
+    # Find language metadata
+    lang_info = next((item for item in SUPPORTED_LANGUAGES_REGISTRY if item["code"] == user_lang), None)
+    lang_display = lang_info["native_name"] if lang_info else user_lang
+    lang_name_en = lang_info["name"] if lang_info else user_lang
+
+    system_prompt = f"""You are the OfflineFirst Multilingual Voice Copilot for rural communities and field workers.
+The user selected language is: {user_lang} ({lang_display} / {lang_name_en}).
 Rules:
-1. Always respond in the requested language ({user_lang}). If Kannada (kn-IN), respond in clear, simple spoken Kannada. If Hindi, in Hindi. If Telugu, in Telugu. If Tamil, in Tamil. If English, in English.
-2. Keep explanations concise, practical, and respectful.
-3. For agricultural queries, NEVER invent unverified chemical pesticides or dosages. If uncertain, ask clarifying questions (crop type, growth stage, soil condition).
-4. Use this verified agricultural knowledge if applicable:
+1. Always respond in the requested language ({user_lang}) in native script ({lang_display}).
+2. Use simple, natural, and respectful wording suited for rural citizens, farmers, and field inspectors.
+3. Instructions: avoid unnecessary English code-switching. Prefer native phrasing.
+4. Strictly preserve names, numbers, measurements (kg, liters, acres, meters, psi), and important technical details.
+5. For agricultural queries, NEVER invent unverified chemical pesticides or dosages. If uncertain, ask clarifying questions (crop type, growth stage, soil condition).
+6. Use this verified agricultural/civic knowledge if applicable:
 {grounding_context}
-5. Provide 2 short suggested follow-up questions at the end if relevant."""
+7. Provide 2 short suggested follow-up questions in {lang_display} at the end if relevant."""
 
     # Call Gemini if key is available
     if settings.GEMINI_API_KEY:
@@ -236,9 +268,13 @@ Rules:
         "hi-IN": "नमस्ते। ऑफलाइन कृषि और फील्ड सहायक तैयार है। कृपया फसल का नाम या समस्या बताएं।",
         "te-IN": "నమస్కారం. ఆఫ్‌లైన్ వ్యవసాయ సహాయకుడు సిద్ధంగా ఉన్నాడు. దయచేసి పంట లేదా సమస్యను పేర్కొనండి.",
         "ta-IN": "வணக்கம். ஆஃப்லைன் விவசாய உதவியாளர் தயார். பயிர் அல்லது சிக்கலை குறிப்பிடவும்.",
+        "ur-IN": "سلام۔ آف لائن زراعتی اور فیلڈ معاون تیار ہے۔ براہ کرم فصل یا مسئلہ کا نام بتائیں۔",
+        "ar-SA": "مرحباً. المساعد الزراعي والميداني في وضع عدم الاتصال جاهز. يرجى ذكر اسم المحصول أو المشكلة.",
+        "es-ES": "Hola. Asistente agrícola y de campo sin conexión listo. Indique el cultivo o problema.",
+        "fr-FR": "Bonjour. Assistant agricole et de terrain hors ligne prêt. Veuillez préciser la culture ou le problème.",
         "en-US": "Hello. Offline agricultural and field assistant is ready. Please mention crop name (Arecanut, Paddy, Ragi, Tomato) or infrastructure issue."
     }
-    msg = fallback_replies.get(user_lang, fallback_replies["kn-IN"])
+    msg = fallback_replies.get(user_lang, fallback_replies.get("en-US", f"Offline assistant ready in {lang_display}."))
 
     return AIChatResponse(
         reply=msg,
